@@ -1,0 +1,39 @@
+package model;
+
+import java.math.BigInteger;
+
+public class ElgamalKey {
+    private final BigInteger q,a,y,x;
+
+    public ElgamalKey(BigInteger q, BigInteger a, BigInteger y, BigInteger x) {
+        this.q = q;
+        this.a = a;
+        this.y = y;
+        this.x = x;
+    }
+
+    public ElgamalKey(BigInteger q, BigInteger a, BigInteger y) {
+        this(q, a, y, null);
+    }
+
+    public BigInteger getQ() { return q; }
+    public BigInteger getA() { return a; }
+    public BigInteger getY() { return y; }
+    public BigInteger getX() { return x; }
+
+    public boolean hasPrivateKey() {
+        return x != null;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("q = ").append(q.toString(16)).append("\n");
+        sb.append("a = ").append(a.toString(16)).append("\n");
+        sb.append("y = ").append(y.toString(16)).append("\n");
+        if (x != null) {
+            sb.append("x = ").append(x.toString(16)).append(" (private)\n");
+        }
+        return sb.toString();
+    }
+}

@@ -1,0 +1,75 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+
+@WebServlet("/keygen")
+public class KeyGenServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        String type = request.getParameter("type");
+        String errorMsg = null;
+        ElgamalKey keyPair = null;
+
+        try {
+            if ("auto".equals(type)) {
+                // TỰ ĐỘNG SINH KHÓA – ĐÚNG THEO CÔNG THỨC TRONG SLIDE
+                BigInteger q = ElgamalModel.generatePrimeModulus(256); // q nguyên tố lớn
+                BigInteger a = ElgamalModel.findPrimitiveRoot(q);     // a là căn nguyên thủy
+                BigInteger x = new BigInteger(q.bitLength() - 1, new java.util.Random())
+                        .mod(q.subtract(BigInteger.valueOf(2)))
+                        .add(BigInteger.ONE); // 1 ≤ x ≤ q-2
+                BigInteger y = a.modPow(x, q);
+
+                keyPair = new ElgamalKey(q, a, y, x);
+
+                // Lưu lại để hiển thị giống như nhập tay
+                session.setAttribute("lastQ", q.toString());
+                session.setAttribute("lastA", a.toString());
+                session.setAttribute("lastX", x.toString());
+            }
+            else if ("manual".equals(type)) {
+                String qStr = request.getParameter("q");
+                String aStr = request.getParameter("a");
+                String xStr = request.getParameter("x");
+
+                BigInteger q = new BigInteger(qStr.trim());
+                BigInteger a = new BigInteger(aStr.trim());
+                BigInteger x = new BigInteger(xStr.trim());
+
+                keyPair = ElgamalModel.createFromValues(q, a, x);
+
+                // Lưu lại giá trị vừa nhập để lần sau vẫn còn
+                session.setAttribute("lastQ", qStr.trim());
+                session.setAttribute("lastA", aStr.trim());
+                session.setAttribute("lastX", xStr.trim());
+            }
+
+            if (keyPair != null) {
+                session.setAttribute("keyPair", keyPair);
+            }
+
+        } catch (IllegalArgumentException e) {
+            errorMsg = e.getMessage();
+        } catch (Exception e) {
+            errorMsg = "Lỗi không xác định: " + e.getMessage();
+        }
+
+        if (errorMsg != null) {
+            session.setAttribute("keygenError", errorMsg);
+        } else {
+            session.removeAttribute("keygenError");
+        }
+
+        response.sendRedirect("index.jsp");
+    }
+}

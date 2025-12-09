@@ -1,0 +1,68 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+
+@WebServlet("/keygen")
+public class KeyGenServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        String type = request.getParameter("type");
+        String errorMsg = null;
+        ElgamalKey keyPair = null;
+
+        try {
+            if ("auto".equals(type)) {
+            
+                keyPair = ElgamalModel.generateKeyPair(70);  
+
+                BigInteger q = keyPair.getQ();
+                session.setAttribute("lastQ", q.toString());
+                session.setAttribute("lastA", keyPair.getA().toString());
+                session.setAttribute("lastX", keyPair.getX().toString());
+            }
+            else if ("manual".equals(type)) {
+                String qStr = request.getParameter("q").trim();
+                String aStr = request.getParameter("a").trim();
+                String xStr = request.getParameter("x").trim();
+
+                BigInteger q = new BigInteger(qStr);
+                BigInteger a = new BigInteger(aStr);
+                BigInteger x = new BigInteger(xStr);
+
+                keyPair = ElgamalModel.createFromValues(q, a, x);
+
+                session.setAttribute("lastQ", qStr);
+                session.setAttribute("lastA", aStr);
+                session.setAttribute("lastX", xStr);
+            }
+
+            if (keyPair != null) {
+                session.setAttribute("keyPair", keyPair);
+                session.setAttribute("keyGenerated", true);
+            }
+
+        } catch (IllegalArgumentException e) {
+            errorMsg = e.getMessage();
+        } catch (Exception e) {
+            errorMsg = "Lỗi không xác định: " + e.getMessage();
+        }
+
+        if (errorMsg != null) {
+            session.setAttribute("keygenError", errorMsg);
+        } else {
+            session.removeAttribute("keygenError");
+        }
+
+        response.sendRedirect("index.jsp");
+    }
+}

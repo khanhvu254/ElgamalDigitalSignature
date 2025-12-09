@@ -1,0 +1,50 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+
+@WebServlet("/keygen")
+public class KeyGenServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        ElgamalKey keyPair = null;
+
+        String type = request.getParameter("type");
+
+        try {
+            if ("auto".equals(type)) {
+                int bitLength = 512; 
+                keyPair = ElgamalModel.generateKeyPair(bitLength);
+
+            } else if ("manual".equals(type)) {
+                BigInteger q = new BigInteger(request.getParameter("q").trim());
+                BigInteger a = new BigInteger(request.getParameter("a").trim());
+                BigInteger x = new BigInteger(request.getParameter("x").trim());
+
+                keyPair = ElgamalModel.createFromValues(q, a, x);
+            }
+
+            // Lưu vào session
+            session.setAttribute("keyPair", keyPair);
+            session.setAttribute("publicKey", String.format(
+                "q = %s\n a = %s\n y = %s",
+                keyPair.getQ().toString(16).toUpperCase(),
+                keyPair.getA().toString(16).toUpperCase(),
+                keyPair.getY().toString(16).toUpperCase()
+            ));
+
+            response.sendRedirect("sign.jsp");
+
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                "Lỗi tạo khóa: " + e.getMessage());
+        }
+    }
+}

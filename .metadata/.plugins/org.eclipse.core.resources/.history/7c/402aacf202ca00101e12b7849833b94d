@@ -1,0 +1,128 @@
+package controller;
+
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import java.util.Random;
+
+@WebServlet("/keygen")
+public class KeyGenServlet extends HttpServlet {
+
+    private static final Random random = new SecureRandom();
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+
+        HttpSession session = req.getSession();
+        String type = req.getParameter("type");
+
+        try {
+            KeyPair keyPair;
+
+            if ("manual".equals(type)) {
+                BigInteger q = new BigInteger(req.getParameter("q").trim());
+                BigInteger a = new BigInteger(req.getParameter("a").trim());
+                BigInteger x = new BigInteger(req.getParameter("x").trim());
+
+                // Kiểm tra cơ bản
+                if (!q.isProbablePrime(100))
+                    throw new IllegalArgumentException("q phải là số nguyên tố!");
+                if (x.compareTo(BigInteger.ONE) < 0 || x.compareTo(q.subtract(BigInteger.TWO)) > 0)
+                    throw new IllegalArgumentException("x phải nằm trong [1, q-2]!");
+
+                BigInteger y = a.modPow(x, q);
+                keyPair = new KeyPair(q, a, x, y);
+
+            } else { // auto
+                // Tạo q nguyên tố 16-20 bit (đủ lớn mà nhanh)
+                BigInteger q = BigInteger.probablePrime(20, random);
+                BigInteger a = findPrimitiveRoot(q);
+                BigInteger x = new BigInteger(q.bitLength() - 1, random)
+                        .mod(q.subtract(BigInteger.TWO))
+                        .add(BigInteger.ONE);
+
+                BigInteger y = a.modPow(x, q);
+                keyPair = new KeyPair(q, a, x, y);
+            }
+
+            // LƯU KẾT QUẢ
+            session.setAttribute("keyPair", keyPair);
+            session.setAttribute("keyGenerated", true);
+            session.setAttribute("inputQ", keyPair.getQ().toString());
+            session.setAttribute("inputA", keyPair.getA().toString());
+            session.setAttribute("inputX", keyPair.getX().toString());
+
+            session.removeAttribute("keygenError");
+
+        } catch (Exception e) {
+            session.setAttribute("keygenError", "Lỗi: " + e.getMessage());
+            session.removeAttribute("keyGenerated");
+        }
+
+        resp.sendRedirect("index.jsp");
+    }
+
+    // HÀM TÌM CĂN NGUYÊN THỦY – ĐÃ SỬA HOÀN TOÀN, KHÔNG CÒN LỖI!
+    private BigInteger findPrimitiveRoot(BigInteger p) {
+        if (p.equals(BigInteger.valueOf(2))) return BigInteger.ONE;
+
+        BigInteger pMinus1 = p.subtract(BigInteger.ONE);
+        BigInteger phi = pMinus1;
+
+        // Tìm 2 thừa số nguyên tố của p-1 (chỉ cần 2 là đủ cho kiểm tra nhanh)
+        BigInteger[] factors = factorize(phi);
+
+        for (BigInteger g = BigInteger.valueOf(2); g.compareTo(p) < 0; g = g.add(BigInteger.ONE)) {
+            boolean isPrimitive = true;
+            for (BigInteger factor : factors) {
+                if (g.modPow(phi.divide(factor), p).equals(BigInteger.ONE)) {
+                    isPrimitive = false;
+                    break;
+                }
+            }
+            if (isPrimitive) return g;
+        }
+        return BigInteger.valueOf(2); // fallback
+    }
+
+    // Phân tích thừa số nguyên tố đơn giản (chỉ cần vài thừa số)
+    private BigInteger[] factorize(BigInteger n) {
+        java.util.List<BigInteger> factors = new java.util.ArrayList<>();
+        BigInteger two = BigInteger.valueOf(2);
+
+        while (n.mod(two).equals(BigInteger.ZERO)) {
+            factors.add(two);
+            n = n.divide(two);
+        }
+
+        for (BigInteger i = BigInteger.valueOf(3); i.multiply(i).compareTo(n) <= 0; i = i.add(two)) {
+            while (n.mod(i).equals(BigInteger.ZERO)) {
+                factors.add(i);
+                n = n.divide(i);
+            }
+        }
+
+        if (n.compareTo(BigInteger.ONE) > 0) {
+            factors.add(n);
+        }
+
+        return factors.toArray(new BigInteger[0]);
+    }
+}
+
+// Class KeyPair (để trong cùng file cho tiện)
+class KeyPair {
+    private final BigInteger q, a, x, y;
+
+    public KeyPair(BigInteger q, BigInteger a, BigInteger x, BigInteger y) {
+        this.q = q; this.a = a; this.x = x; this.y = y;
+    }
+
+    public BigInteger getQ() { return q; }
+    public BigInteger getA() { return a; }
+    public BigInteger getX() { return x; }
+    public BigInteger getY() { return y; }
+}

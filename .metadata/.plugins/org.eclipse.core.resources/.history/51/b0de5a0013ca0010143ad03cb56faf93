@@ -1,0 +1,112 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import model.Signature;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+@WebServlet("/verify")
+@MultipartConfig
+public class VerifyServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        ElgamalKey keyPair = (ElgamalKey) session.getAttribute("keyPair");
+
+        if (keyPair == null || !keyPair.hasPrivateKey()) {
+            request.setAttribute("valid", false);
+            request.setAttribute("error", "Chưa tạo khóa!");
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+            return;
+        }
+
+        // Lấy khóa công khai từ session (không cần nhập lại q, a, y)
+        ElgamalKey publicKey = new ElgamalKey(keyPair.getQ(), keyPair.getA(), keyPair.getY());
+
+        String message = null;
+        BigInteger r = null;
+        BigInteger s = null;
+
+        // Ưu tiên đọc từ file nếu có
+        Part msgFilePart = request.getPart("messageFile");
+        Part sigFilePart = request.getPart("signatureFile");
+
+        if (msgFilePart != null && msgFilePart.getSize() > 0 && sigFilePart != null && sigFilePart.getSize() > 0) {
+            // CÁCH 1: Từ file
+            message = new String(msgFilePart.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+            String sigContent = new String(sigFilePart.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+            String[] parts = sigContent.split("[,\\s]+");
+            if (parts.length < 2) {
+                request.setAttribute("valid", false);
+                request.getRequestDispatcher("index.jsp").forward(request, response);
+                return;
+            }
+            r = parseBigInteger(parts[0].trim());
+            s = parseBigInteger(parts[1].trim());
+
+        } else {
+            // CÁCH 2: Nhập tay
+            String rStr = request.getParameter("r");
+            String sStr = request.getParameter("s");
+            message = request.getParameter("message");
+
+            if (rStr == null || sStr == null || message == null || message.trim().isEmpty()) {
+                request.setAttribute("valid", false);
+                request.getRequestDispatcher("index.jsp").forward(request, response);
+                return;
+            }
+            r = parseBigInteger(rStr.trim());
+            s = parseBigInteger(sStr.trim());
+        }
+
+        try {
+            Signature signature = new Signature(r, s);
+            boolean valid = ElgamalModel.verify(message, signature, publicKey);
+            request.setAttribute("valid", valid);
+        } catch (Exception e) {
+            request.setAttribute("valid", false);
+        }
+
+        request.getRequestDispatcher("index.jsp").forward(request, response);
+    }
+
+    // HÀM SIÊU THÔNG MINH: Tự nhận diện Base64, Hex, Decimal
+    private BigInteger parseBigInteger(String input) {
+        if (input == null || input.trim().isEmpty()) throw new IllegalArgumentException("Rỗng");
+
+        input = input.trim();
+
+        try {
+            // 1. Base64
+            if (input.matches("^[A-Za-z0-9+/=]+$") && !input.matches("^[0-9]+$")) {
+                byte[] bytes = Base64.getDecoder().decode(input);
+                return new BigInteger(1, bytes);
+            }
+
+            // 2. Hex (có 0x hoặc không)
+            if (input.toLowerCase().startsWith("0x")) {
+                return new BigInteger(input.substring(2), 16);
+            }
+            if (input.matches("^[A-Fa-f0-9]+$")) {
+                return new BigInteger(input, 16);
+            }
+
+            // 3. Decimal
+            return new BigInteger(input);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Không thể đọc số: " + input);
+        }
+    }
+}

@@ -1,0 +1,95 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import model.Signature;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+
+@WebServlet("/verify")
+@MultipartConfig
+public class VerifyServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        ElgamalKey keyPair = (ElgamalKey) session.getAttribute("keyPair");
+
+        if (keyPair == null) {
+            request.setAttribute("valid", false);
+            request.setAttribute("error", "Chưa tạo khóa!");
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+            return;
+        }
+
+        ElgamalKey publicKey = new ElgamalKey(keyPair.getQ(), keyPair.getA(), keyPair.getY());
+
+        String message = null;
+        BigInteger r = null;
+        BigInteger s = null;
+
+        // CÁCH 1: Từ file
+        Part msgPart = request.getPart("messageFile");
+        Part sigPart = request.getPart("signatureFile");
+
+        if (msgPart != null && msgPart.getSize() > 0 && sigPart != null && sigPart.getSize() > 0) {
+            message = new String(msgPart.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String sigText = new String(sigPart.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+
+            try {
+                Signature sig = ElgamalModel.signatureFromString(sigText);
+                r = sig.getR();
+                s = sig.getS();
+            } catch (Exception e) {
+                request.setAttribute("valid", false);
+                request.setAttribute("error", "File chữ ký sai định dạng! Phải là: r,s");
+                request.getRequestDispatcher("index.jsp").forward(request, response);
+                return;
+            }
+        } else {
+            // CÁCH 2: Nhập tay (r, s là số thường)
+            String rStr = request.getParameter("r");
+            String sStr = request.getParameter("s");
+            message = request.getParameter("message");
+
+            if (rStr == null || sStr == null || message == null || message.trim().isEmpty()
+                    || rStr.trim().isEmpty() || sStr.trim().isEmpty()) {
+                request.setAttribute("valid", false);
+                request.setAttribute("error", "Vui lòng nhập đầy đủ r, s và thông điệp!");
+                request.getRequestDispatcher("index.jsp").forward(request, response);
+                return;
+            }
+
+            try {
+                r = new BigInteger(rStr.trim());
+                s = new BigInteger(sStr.trim());
+            } catch (NumberFormatException e) {
+                request.setAttribute("valid", false);
+                request.setAttribute("error", "r hoặc s không phải số hợp lệ!");
+                request.getRequestDispatcher("index.jsp").forward(request, response);
+                return;
+            }
+        }
+
+        try {
+            Signature signature = new Signature(r, s);
+            boolean valid = ElgamalModel.verify(message, signature, publicKey);
+            request.setAttribute("valid", valid);
+            if (!valid) {
+                request.setAttribute("error", "Chữ ký KHÔNG HỢP LỆ hoặc đã bị giả mạo!");
+            }
+        } catch (Exception e) {
+            request.setAttribute("valid", false);
+            request.setAttribute("error", "Lỗi xác minh: " + e.getMessage());
+        }
+
+        request.getRequestDispatcher("index.jsp").forward(request, response);
+    }
+}

@@ -1,0 +1,24 @@
+package controller;
+
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/resetkey")
+public class ResetKeyServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        HttpSession session = request.getSession();
+
+        session.removeAttribute("keyPair");
+        session.removeAttribute("keyGenerated");
+        session.removeAttribute("inputQ");
+        session.removeAttribute("inputA");
+        session.removeAttribute("inputX");
+
+        response.setStatus(200); // OK
+    }
+}

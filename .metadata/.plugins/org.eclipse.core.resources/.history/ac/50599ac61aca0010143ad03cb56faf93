@@ -1,0 +1,288 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chữ Ký Số ElGamal - Hiển thị r, s, k</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            min-height: 100vh;
+            padding: 30px 0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .container { max-width: 1500px; }
+        .card { border: none; border-radius: 20px; overflow: hidden; box-shadow: 0 12px 35px rgba(0,0,0,0.3); }
+        .card-header {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            font-weight: bold;
+            font-size: 1.5rem;
+            padding: 20px;
+            text-align: center;
+        }
+        .result-box {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #555;
+            cursor: pointer;
+        }
+        .copy-btn:hover { color: #000; }
+        .verify-result {
+            display: none;
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 20px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.8rem;
+        }
+        .verify-result.show { display: block; animation: fadeIn 0.6s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .signature-display {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="text-center text-white mb-5">
+        <h1 class="display-3 fw-bold">CHỮ KÝ SỐ ELGAMAL</h1>
+        <p class="lead fs-4">Hiển thị đầy đủ r, s, k – Chuẩn giáo trình – Dễ bảo vệ nhất!</p>
+    </div>
+
+    <div class="row g-5">
+
+        <!-- BƯỚC 1: TẠO KHÓA -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">BƯỚC 1: TẠO KHÓA</div>
+                <div class="card-body">
+                    <form action="keygen" method="post" class="mb-3">
+                        <input type="hidden" name="type" value="manual">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">q (số nguyên tố)</label>
+                            <input type="text" class="form-control" name="q" value="${sessionScope.lastQ}" placeholder="19" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">α (căn nguyên thủy)</label>
+                            <input type="text" class="form-control" name="a" value="${sessionScope.lastA}" placeholder="10" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">x (khóa bí mật)</label>
+                            <input type="text" class="form-control" name="x" value="${sessionScope.lastX}" placeholder="5" required>
+                        </div>
+                        <div class="d-grid d-md-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill">Tạo từ dữ liệu</button>
+                            <button type="button" onclick="resetKey()" class="btn btn-outline-danger">Reset</button>
+                        </div>
+                    </form>
+
+                    <form action="keygen" method="post">
+                        <input type="hidden" name="type" value="auto">
+                        <button type="submit" class="btn btn-success w-100">Tạo khóa ngẫu nhiên</button>
+                    </form>
+
+                    <c:if test="${not empty sessionScope.keygenError}">
+                        <div class="alert alert-danger mt-3">${sessionScope.keygenError}</div>
+                    </c:if>
+
+                    <c:if test="${sessionScope.keyGenerated == true}">
+                        <div class="result-box mt-4">
+                            <strong class="text-primary">Khóa công khai (q, α, y):</strong>
+                            <div class="mt-2 fw-bold fs-5">${sessionScope.keyPair.q}, ${sessionScope.keyPair.a}, ${sessionScope.keyPair.y}</div>
+                            <button class="copy-btn" onclick="copyText('${sessionScope.keyPair.q}, ${sessionScope.keyPair.a}, ${sessionScope.keyPair.y}')"><i class="fas fa-copy"></i></button>
+                        </div>
+                        <div class="result-box mt-3 bg-danger-subtle">
+                            <strong class="text-danger">Khóa bí mật (x):</strong>
+                            <div class="mt-2 fw-bold fs-5">${sessionScope.keyPair.x}</div>
+                            <button class="copy-btn" onclick="copyText('${sessionScope.keyPair.x}')"><i class="fas fa-copy"></i></button>
+                        </div>
+                    </c:if>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 2: KÝ TÀI LIỆU -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">BƯỚC 2: KÝ TÀI LIỆU</div>
+                <div class="card-body">
+                    <c:if test="${not empty requestScope.error}">
+                        <div class="alert alert-danger">${requestScope.error}</div>
+                    </c:if>
+
+                    <c:if test="${sessionScope.keyGenerated != true}">
+                        <p class="text-muted text-center fst-italic">Vui lòng tạo khóa trước</p>
+                    </c:if>
+
+                    <c:if test="${sessionScope.keyGenerated == true}">
+                        <form action="sign" method="post" enctype="multipart/form-data">
+                            <textarea class="form-control mb-3" rows="6" name="message" placeholder="Nhập nội dung cần ký..." required>${requestScope.messageContent}</textarea>
+                            <div class="text-center text-muted mb-2">HOẶC</div>
+                            <input type="file" class="form-control mb-3" name="file">
+
+                            <div class="alert alert-info small">
+                                <strong>Tùy chọn nâng cao:</strong> Nhập k để minh họa thuật toán (để trống = tự động chọn k an toàn)
+                            </div>
+                            <input type="text" class="form-control mb-4" name="customK" placeholder="Ví dụ: 7, 11, 13..." value="${param.customK}">
+
+                            <button type="submit" class="btn btn-primary w-100 btn-lg">Ký tài liệu</button>
+                        </form>
+
+                        <!-- HIỂN THỊ CHỮ KÝ CÓ k -->
+                        <c:if test="${not empty requestScope.kValue}">
+                            <div class="signature-display mt-4">
+                                <h3 class="text-success fw-bold mb-4">CHỮ KÝ THÀNH CÔNG!</h3>
+                                <div class="row text-center">
+                                    <div class="col">
+                                        <div class="fs-1 fw-bold text-danger">r = ${requestScope.rValue}</div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="fs-1 fw-bold text-primary">s = ${requestScope.sValue}</div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="fs-1 fw-bold text-warning">k = ${requestScope.kValue}</div>
+                                    </div>
+                                </div>
+                                <hr class="my-4">
+                                <p class="mb-0 text-muted">Chữ ký đầy đủ: <strong>${requestScope.signatureText}</strong></p>
+                                <button class="copy-btn" onclick="copyText('${requestScope.signatureText}')"><i class="fas fa-copy"></i></button>
+                            </div>
+                            <button onclick="downloadSignature()" class="btn btn-success w-100 mt-3">Tải chữ ký (r,s,k).txt</button>
+                        </c:if>
+                    </c:if>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 3: XÁC MINH -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">BƯỚC 3: XÁC MINH CHỮ KÝ</div>
+                <div class="card-body">
+                    <c:if test="${sessionScope.keyGenerated != true}">
+                        <p class="text-muted text-center fst-italic">Vui lòng tạo khóa trước</p>
+                    </c:if>
+
+                    <c:if test="${sessionScope.keyGenerated == true}">
+                        <div id="verifyResult" class="verify-result"></div>
+
+                        <form id="verifyFileForm" class="mb-4">
+                            <small class="fw-bold text-primary">Cách 1: Từ file</small>
+                            <input type="file" class="form-control form-control-sm mt-2" id="messageFile">
+                            <input type="file" class="form-control form-control-sm mt-2" id="signatureFile" accept=".txt">
+                            <button type="submit" class="btn btn-info text-white w-100 mt-3">Xác minh từ file</button>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <form id="verifyManualForm">
+                            <small class="fw-bold text-success">Cách 2: Nhập tay r và s</small>
+                            <input type="text" class="form-control mt-2" id="rInput" placeholder="Nhập r" required>
+                            <input type="text" class="form-control mt-2" id="sInput" placeholder="Nhập s" required>
+                            <textarea class="form-control mt-2" rows="3" id="messageInput" placeholder="Nội dung gốc..." required></textarea>
+                            <button type="submit" class="btn btn-primary w-100 mt-3">Xác minh ngay</button>
+                        </form>
+                    </c:if>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lịch sử -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Lịch sử hành động</h5>
+                        <button type="button" onclick="clearAll()" class="btn btn-outline-danger btn-sm">Xóa tất cả</button>
+                    </div>
+                    <c:choose>
+                        <c:when test="${not empty sessionScope.history}">
+                            <ul class="list-group list-group-flush">
+                                <c:forEach var="item" items="${sessionScope.history}">
+                                    <li class="list-group-item">${item}</li>
+                                </c:forEach>
+                            </ul>
+                        </c:when>
+                        <c:otherwise>
+                            <p class="text-muted mb-0">Chưa có hành động nào.</p>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('verifyFileForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('messageFile', document.getElementById('messageFile').files[0]);
+        formData.append('signatureFile', document.getElementById('signatureFile').files[0]);
+        const res = await fetch('verify', { method: 'POST', body: formData });
+        const html = await res.text();
+        showResult(html.includes('valid">true'));
+    };
+
+    document.getElementById('verifyManualForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('r', document.getElementById('rInput').value.trim());
+        formData.append('s', document.getElementById('sInput').value.trim());
+        formData.append('message', document.getElementById('messageInput').value);
+        const res = await fetch('verify', { method: 'POST', body: formData });
+        const html = await res.text();
+        showResult(html.includes('valid">true'));
+    };
+
+    function showResult(isValid) {
+        const el = document.getElementById('verifyResult');
+        el.className = 'verify-result show ' + (isValid ? 'alert-success' : 'alert-danger');
+        el.innerHTML = isValid ? 'CHỮ KÝ HỢP LỆ' : 'CHỮ KÝ KHÔNG HỢP LỆ!';
+    }
+
+    function resetKey() { if(confirm("Xóa khóa hiện tại?")) fetch('resetkey', {method:'POST'}).then(()=>location.reload()); }
+    function clearAll() { if(confirm("Xóa toàn bộ dữ liệu?")) fetch('clearall', {method:'POST'}).then(()=>location.reload()); }
+    function copyText(text) { navigator.clipboard.writeText(text).then(()=>alert("Đã sao chép!")); }
+
+    function downloadSignature() {
+        const text = "${requestScope.signatureText}";
+        if (!text) return alert("Chưa có chữ ký!");
+        const blob = new Blob([text], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "chuky_elgamal_r_s_k.txt";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

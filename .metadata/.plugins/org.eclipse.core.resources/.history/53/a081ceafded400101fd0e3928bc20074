@@ -1,0 +1,538 @@
+<%@ page 
+    language="java" 
+    contentType="text/html; charset=UTF-8" 
+    pageEncoding="UTF-8"
+%>
+<%@ page import="java.math.BigInteger" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Chữ ký số ElGamal</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 10px;
+            font-size: 2.8em;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #f0f0f0;
+            font-size: 16px;
+            margin-bottom: 40px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 2em;
+            }
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"], 
+        textarea {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            background-color: #fafafa;
+        }
+
+        input[type="text"]:focus, 
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            background-color: #ffffff;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            border: none;
+            padding: 14px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #fff;
+            font-weight: 600;
+            width: 100%;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+            font-size: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .btn:hover::before {
+            width: 400px;
+            height: 400px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-success { 
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .btn-secondary { 
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .btn-danger { 
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .button-group .btn {
+            margin-bottom: 0;
+        }
+
+        .divider-text {
+            text-align: center;
+            margin: 15px 0;
+            color: #666;
+            font-weight: 500;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .divider-text::before,
+        .divider-text::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .divider-text::before {
+            left: 0;
+        }
+
+        .divider-text::after {
+            right: 0;
+        }
+
+        .file-upload-wrapper {
+            margin-bottom: 18px;
+        }
+
+        .file-upload-wrapper input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            background-color: #f8f9ff;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-wrapper input[type="file"]:hover {
+            background-color: #eef0ff;
+            border-color: #764ba2;
+        }
+
+        .result-box {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 18px;
+            font-size: 13px;
+            color: #333;
+            margin-top: 18px;
+            word-break: break-all;
+            line-height: 1.7;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .result-box strong {
+            color: #667eea;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .result-box .success-text {
+            color: #38ef7d !important;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .alert {
+            padding: 18px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            font-size: 15px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideDown 0.4s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success { 
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724; 
+            border: 2px solid #38ef7d;
+        }
+
+        .alert-danger { 
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #721c24; 
+            border: 2px solid #eb3349;
+        }
+
+        .footer-actions {
+            margin-top: 30px;
+            text-align: center;
+            padding: 25px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .footer-actions .btn {
+            width: auto;
+            min-width: 280px;
+            padding: 16px 40px;
+            font-size: 16px;
+        }
+
+        .verify-result-section {
+            margin-top: 25px;
+        }
+
+        .verify-result-section label {
+            margin-bottom: 12px;
+            font-size: 15px;
+            color: #555;
+        }
+
+        .verify-result-box {
+            text-align: center;
+            font-weight: bold;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+    </style>
+    
+    <script>
+        function readFile(input, targetId) {
+            let file = input.files[0];
+            if (!file) return;
+            
+            let reader = new FileReader();
+            reader.onload = function() {
+                document.getElementById(targetId).value = reader.result;
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔐 Chữ Ký Số ElGamal</h1>
+    <p class="subtitle">Hệ thống chữ ký số ElGamal - Thực hiện theo thứ tự từ bước 1 đến bước 3</p>
+
+    <% 
+    if(request.getAttribute("error") != null) { 
+    %>
+        <div class="alert alert-danger">❌ <%= request.getAttribute("error") %></div>
+    <% 
+    } 
+    %>
+
+    <div class="grid-container">
+        
+        <!-- BƯỚC 1: TẠO KHÓA -->
+        <div class="card">
+            <div class="card-header">BƯỚC 1: TẠO KHÓA</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="generateKeys">
+                    
+                    <label>🔢 Số nguyên tố p</label>
+                    <input type="text" name="p" placeholder="Nhập số nguyên tố p..." value="${sessionScope.key_p}">
+                    
+                    <label>🔑 Số căn nguyên alpha</label>
+                    <input type="text" name="alpha" placeholder="Nhập số căn nguyên alpha..." value="${sessionScope.key_alpha}">
+                    
+                    <label>🔒 Khóa bí mật x</label>
+                    <input type="text" name="x" placeholder="Nhập khóa bí mật x..." value="${sessionScope.key_x}">
+                    
+                    <div class="button-group">
+                        <button type="reset" class="btn btn-secondary" style="flex: 0 0 30%">Reset</button>
+                        <button type="submit" name="genMode" value="input" class="btn btn-primary" style="flex: 1">Tạo khóa từ đầu vào</button>
+                    </div>
+                    
+                    <div class="divider-text">hoặc</div>
+                    
+                    <button type="submit" name="genMode" value="random" class="btn btn-success">Tạo khóa ngẫu nhiên</button>
+                </form>
+
+                <div class="result-box">
+                    <strong>Khóa Đã Sinh:</strong>
+                    <% 
+                    if(session.getAttribute("key_y") != null) { 
+                    %>
+                        <span class="success-text">Đã có khóa!</span><br>
+                        <span style="color: #555">Public Key (y):</span><br>
+                        <span style="font-size: 12px; color: #666">${sessionScope.key_y}</span>
+                    <% 
+                    } else { 
+                    %>
+                        <span style="color: #999">Chưa có khóa được sinh.</span>
+                    <% 
+                    } 
+                    %>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 2: KÝ TÀI LIỆU -->
+        <div class="card">
+            <div class="card-header">BƯỚC 2: KÝ TÀI LIỆU</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="sign">
+                    
+                    <label>📄 Văn bản cần ký</label>
+                    <textarea name="docContent" id="docContent" placeholder="Nhập văn bản cần ký...">${param.docContent}</textarea>
+                    
+                    <div class="file-upload-wrapper">
+                        <input type="file" accept=".txt" onchange="readFile(this, 'docContent')">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Ký tài liệu</button>
+                </form>
+
+                <div class="result-box">
+                    <strong>🔏 Chữ Ký Đã Tạo (r, s):</strong>
+                    <% 
+                    if(request.getAttribute("sign_r") != null) { 
+                    %>
+                        <span style="color: #555">📌 r:</span><br>
+                        <span style="font-size: 12px; color: #666; margin-bottom: 8px; display: block"><%= request.getAttribute("sign_r") %></span>
+                        <span style="color: #555">📌 s:</span><br>
+                        <span style="font-size: 12px; color: #666"><%= request.getAttribute("sign_s") %></span>
+                    <% 
+                    } else { 
+                    %>
+                        <span style="color: #999">Chữ ký sẽ hiển thị ở đây sau khi tạo...</span>
+                    <% 
+                    } 
+                    %>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 3: XÁC MINH CHỮ KÝ -->
+        <div class="card">
+            <div class="card-header">BƯỚC 3: XÁC MINH CHỮ KÝ</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="verify">
+                    
+                    <label>🔏 Chữ ký (Điền dạng: r,s)</label>
+                    <textarea name="sigVerifyR" id="sigVerify" placeholder="Nhập chữ ký dạng: r,s..."><%
+                        if(request.getAttribute("verify_sig_input") != null){
+                            out.print(request.getAttribute("verify_sig_input"));
+                        } else if(request.getAttribute("sign_r")!=null){
+                            out.print(request.getAttribute("sign_r") + "," + request.getAttribute("sign_s"));
+                        }
+                    %></textarea>
+                    <div class="file-upload-wrapper">
+                        <input type="file" accept=".txt" onchange="readFile(this, 'sigVerify')">
+                    </div>
+
+                    <label>📄 Văn bản gốc</label>
+                    <textarea name="docVerify" id="docVerify" placeholder="Nhập văn bản gốc..."><%
+                        if(request.getAttribute("verify_doc_input") != null){
+                            out.print(request.getAttribute("verify_doc_input"));
+                        } else {
+                            out.print(request.getAttribute("last_signed_doc"));
+                        }
+                    %></textarea>
+                    <div class="file-upload-wrapper">
+                        <input type="file" accept=".txt" onchange="readFile(this, 'docVerify')">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Xác minh chữ ký</button>
+                </form>
+
+                <div class="verify-result-section">
+                    <label>Kết Quả Kiểm Tra</label>
+                    <% 
+                    if(request.getAttribute("verify_checked") != null) {
+                        boolean isValid = (Boolean)request.getAttribute("verify_result");
+                    %>
+                        <div class="alert <%= isValid ? "alert-success" : "alert-danger" %> verify-result-box">
+                            <%= isValid ? "✅ CHỮ KÝ HỢP LỆ" : "CHỮ KÝ KHÔNG HỢP LỆ / ĐÃ BỊ SỬA ĐỔI" %>
+                        </div>
+                    <% 
+                    } else { 
+                    %>
+                        <div class="result-box">
+                            <span style="color: #999">Chưa kiểm tra</span>
+                        </div>
+                    <% 
+                    } 
+                    %>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer-actions">
+        <form action="process" method="post">
+            <input type="hidden" name="action" value="reset">
+            <button type="submit" class="btn btn-danger">Xóa tất cả dữ liệu</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

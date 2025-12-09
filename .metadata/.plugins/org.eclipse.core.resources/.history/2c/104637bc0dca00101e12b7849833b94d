@@ -1,0 +1,156 @@
+package model;
+
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+public class ElgamalModel {
+    private static final Random rnd = new SecureRandom();
+    private static final int CERTAINTY = 100;
+
+    // Sinh số nguyên tố lớn q
+    public static BigInteger generatePrimeModulus(int bitLength) {
+        return BigInteger.probablePrime(bitLength, rnd);
+    }
+
+    // TÌM CĂN NGUYÊN THỦY 
+    public static BigInteger findPrimitiveRoot(BigInteger q) {
+        BigInteger phi = q.subtract(BigInteger.ONE);
+        List<BigInteger> factors = primeFactors(phi);
+
+        BigInteger[] fastCandidates = {
+            BigInteger.valueOf(2), BigInteger.valueOf(3), BigInteger.valueOf(5),
+            BigInteger.valueOf(6), BigInteger.valueOf(7), BigInteger.valueOf(11),
+            BigInteger.valueOf(13), BigInteger.valueOf(17), BigInteger.valueOf(19)
+        };
+
+        for (BigInteger g : fastCandidates) {
+            if (g.compareTo(q) >= 0) continue;
+            if (isPrimitiveRoot(g, q, factors, phi)) {
+                return g;
+            }
+        }
+
+        // Fallback: thử ngẫu nhiên tối đa 200 lần 
+        for (int i = 0; i < 200; i++) {
+            BigInteger g = BigInteger.valueOf(2 + rnd.nextInt(1000000)).mod(phi).add(BigInteger.TWO);
+            if (g.compareTo(q) < 0 && isPrimitiveRoot(g, q, factors, phi)) {
+                return g;
+            }
+        }
+
+        throw new RuntimeException("Không tìm được căn nguyên thủy sau nhiều lần thử");
+    }
+
+    private static boolean isPrimitiveRoot(BigInteger g, BigInteger q, List<BigInteger> factors, BigInteger phi) {
+        for (BigInteger f : factors) {
+            if (g.modPow(phi.divide(f), q).equals(BigInteger.ONE)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Sinh cặp khóa tự động (gọi từ servlet)
+    public static ElgamalKey generateKeyPair(int bitLength) {
+        BigInteger q = generatePrimeModulus(bitLength);
+        BigInteger a = findPrimitiveRoot(q);
+
+        // ĐÚNG THEO SLIDE: 1 ≤ x ≤ q-2
+        BigInteger x = new BigInteger(q.bitLength() - 1, rnd)
+                .mod(q.subtract(BigInteger.valueOf(2)))   // 0 đến q-3
+                .add(BigInteger.ONE);                     // → 1 đến q-2
+
+        BigInteger y = a.modPow(x, q);
+        return new ElgamalKey(q, a, y, x);
+    }
+
+    // Tạo khóa từ giá trị nhập tay
+    public static ElgamalKey createFromValues(BigInteger q, BigInteger a, BigInteger x) {
+        if (!q.isProbablePrime(CERTAINTY))
+            throw new IllegalArgumentException("q phải là số nguyên tố");
+        if (!isPrimitiveRoot(a, q))
+            throw new IllegalArgumentException("a phải là căn nguyên thủy modulo q");
+        if (x.compareTo(BigInteger.ONE) < 0 || x.compareTo(q.subtract(BigInteger.valueOf(2))) >= 0)
+            throw new IllegalArgumentException("x phải thuộc [1, q-2]");
+        BigInteger y = a.modPow(x, q);
+        return new ElgamalKey(q, a, y, x);
+    }
+
+    private static boolean isPrimitiveRoot(BigInteger a, BigInteger q) {
+        BigInteger phi = q.subtract(BigInteger.ONE);
+        List<BigInteger> factors = primeFactors(phi);
+        return isPrimitiveRoot(a, q, factors, phi);
+    }
+
+    // Băm SHA-256 → mod q
+    private static BigInteger hash(String message, BigInteger q) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(message.getBytes("UTF-8"));
+            BigInteger h = new BigInteger(1, digest);
+            return h.mod(q);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi băm thông điệp", e);
+        }
+    }
+
+    // Ký thông điệp
+    public static Signature sign(String message, ElgamalKey privateKey) {
+        BigInteger q = privateKey.getQ();
+        BigInteger a = privateKey.getA();
+        BigInteger x = privateKey.getX();
+        BigInteger m = hash(message, q);
+        BigInteger k, r, s;
+
+        do {
+            do {
+                k = new BigInteger(q.bitLength() - 1, rnd)
+                        .mod(q.subtract(BigInteger.ONE))
+                        .add(BigInteger.ONE);
+            } while (!k.gcd(q.subtract(BigInteger.ONE)).equals(BigInteger.ONE));
+
+            r = a.modPow(k, q);
+            BigInteger kInv = k.modInverse(q.subtract(BigInteger.ONE));
+            s = kInv.multiply(m.subtract(x.multiply(r))).mod(q.subtract(BigInteger.ONE));
+        } while (s.equals(BigInteger.ZERO));
+
+        return new Signature(r, s);
+    }
+
+    // Xác minh chữ ký
+    public static boolean verify(String message, Signature signature, ElgamalKey publicKey) {
+        BigInteger q = publicKey.getQ();
+        BigInteger a = publicKey.getA();
+        BigInteger y = publicKey.getY();
+        BigInteger r = signature.getR();
+        BigInteger s = signature.getS();
+
+        if (r.compareTo(BigInteger.ONE) < 0 || r.compareTo(q.subtract(BigInteger.ONE)) >= 0) return false;
+        if (s.compareTo(BigInteger.ZERO) <= 0 || s.compareTo(q.subtract(BigInteger.ONE)) >= 0) return false;
+
+        BigInteger m = hash(message, q);
+        BigInteger left = a.modPow(m, q);
+        BigInteger right = y.modPow(r, q).multiply(r.modPow(s, q)).mod(q);
+        return left.equals(right);
+    }
+
+    // Phân tích thừa số (giữ nguyên)
+    private static List<BigInteger> primeFactors(BigInteger n) {
+        List<BigInteger> factors = new ArrayList<>();
+        BigInteger num = n;
+        BigInteger i = BigInteger.TWO;
+        while (i.multiply(i).compareTo(num) <= 0) {
+            while (num.mod(i).equals(BigInteger.ZERO)) {
+                factors.add(i);
+                num = num.divide(i);
+            }
+            i = i.add(BigInteger.ONE);
+        }
+        if (num.compareTo(BigInteger.ONE) > 0) factors.add(num);
+        return factors;
+    }
+}

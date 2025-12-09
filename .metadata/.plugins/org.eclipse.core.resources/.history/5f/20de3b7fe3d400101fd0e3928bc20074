@@ -1,0 +1,190 @@
+/* Reset cơ bản */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 24px;
+    color: #222;
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    text-align: center;
+    color: #fff;
+    font-size: 2.4rem;
+    margin-bottom: 6px;
+}
+
+.subtitle {
+    text-align: center;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 22px;
+    font-size: 0.95rem;
+}
+
+/* Grid 3 cột, responsive */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    margin-bottom: 22px;
+}
+
+@media (max-width: 1100px) {
+    .grid-container { grid-template-columns: 1fr; }
+}
+
+/* Card: KHÔNG CÓ animation khi hover */
+.card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 26px rgba(0,0,0,0.12);
+    overflow: hidden;
+    /* bỏ transition và transform để không có effect hover */
+}
+
+/* Header của card */
+.card-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    padding: 12px 14px;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* Body */
+.card-body {
+    padding: 16px;
+}
+
+/* Form fields */
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+input[type="text"], textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #d0d0d0;
+    margin-bottom: 12px;
+    font-family: monospace;
+    font-size: 0.92rem;
+    background: #fbfbfb;
+    resize: vertical;
+}
+
+textarea { min-height: 110px; }
+
+/* File input */
+input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px dashed #ccc;
+    margin-bottom: 12px;
+    background: #fafafa;
+}
+
+/* Buttons: vẫn có hover/active nhẹ */
+.btn {
+    display: inline-block;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    font-weight: 700;
+    width: 100%;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0,0,0,0.12); }
+.btn:active { transform: translateY(0); }
+
+.btn-primary { background: linear-gradient(135deg,#4f62d8,#6f49b3); }
+.btn-success { background: linear-gradient(135deg,#11998e,#38ef7d); }
+.btn-danger { background: linear-gradient(135deg,#eb3349,#f45c43); }
+
+/* Căn hàng nút đơn ở Bước 1 */
+.single-button-row {
+    margin-bottom: 12px;
+}
+
+/* Divider text */
+.divider-text {
+    text-align: center;
+    margin: 12px 0;
+    color: #666;
+    font-weight: 600;
+}
+
+/* Kết quả / hiển thị khóa/chữ ký */
+.result-box, .verify-result-section {
+    margin-top: 12px;
+    padding: 12px;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.key-row {
+    margin: 8px 0;
+    word-break: break-all;
+}
+
+.key-label {
+    font-weight: 700;
+    color: #333;
+    margin-right: 6px;
+}
+
+.key-value {
+    font-family: monospace;
+    font-size: 0.86rem;
+    color: #444;
+    display: block;
+    margin-top: 4px;
+}
+
+/* Smaller placeholder text */
+.placeholder {
+    color: #9aa0a6;
+    font-size: 0.92rem;
+}
+
+/* Alerts */
+.alert {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    font-weight: 700;
+    text-align: center;
+}
+.alert-success { background: #d4edda; color: #155724; }
+.alert-danger { background: #f8d7da; color: #721c24; }
+
+/* Footer actions */
+.footer-actions {
+    text-align: center;
+    margin-top: 8px;
+}
+
+/* Scrollbar look */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 6px; }
+::-webkit-scrollbar-thumb { background: linear-gradient(135deg,#667eea,#764ba2); border-radius: 6px; }

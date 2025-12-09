@@ -1,0 +1,239 @@
+/* ======================= RESET ======================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Segoe UI", sans-serif;
+    padding: 20px;
+
+    /* Gradient nền giống hình của bạn */
+    background: linear-gradient(135deg, #4b6cb7, #182848);
+    min-height: 100vh;
+}
+
+/* ======================= CONTAINER ======================= */
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+/* Title */
+h1 {
+    text-align: center;
+    margin-bottom: 6px;
+    color: #fff;
+}
+
+.subtitle {
+    text-align: center;
+    color: #eee;
+    margin-bottom: 20px;
+}
+
+/* ======================= GRID ======================= */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+@media (max-width: 1100px) {
+    .grid-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ======================= CARD ======================= */
+.card {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    overflow: hidden;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* Header */
+.card-header {
+    background: #4c6ef5;
+    color: white;
+    padding: 10px 14px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Body */
+.card-body {
+    padding: 16px;
+}
+
+/* ======================= FORM ======================= */
+label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+    color: #333;
+}
+
+input[type="text"],
+textarea {
+    width: 100%;
+    padding: 10px;
+    background: #fafafa;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px dashed #aaa;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    background: #fff;
+}
+
+/* ======================= BUTTONS ======================= */
+.btn {
+    padding: 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    color: #fff;
+    font-weight: bold;
+    transition: 0.15s;
+}
+
+.btn:hover {
+    transform: scale(1.04);
+}
+
+.btn-primary {
+    background: #4c6ef5;
+}
+
+.btn-success {
+    background: #2f9e44;
+}
+
+.btn-danger {
+    background: #d6336c;
+}
+
+/* Single button alignment */
+.single-button-row {
+    margin-bottom: 10px;
+}
+
+/* Divider text */
+.divider-text {
+    text-align: center;
+    color: #555;
+    margin: 10px 0;
+    font-weight: 600;
+}
+
+/* ======================= RESULT / KEY DISPLAY ======================= */
+.result-box,
+.verify-result-section {
+    background: #fafafa;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin-top: 12px;
+}
+
+.key-row {
+    margin: 8px 0;
+    word-break: break-all;
+}
+
+.key-label {
+    font-weight: bold;
+    color: #333;
+}
+
+.key-value {
+    display: block;
+    margin-top: 4px;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.placeholder {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+/* ======================= ALERTS ======================= */
+.alert {
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.alert-success {
+    background: #d3f9d8;
+    color: #2f9e44;
+}
+
+.alert-danger {
+    background: #ffe3e3;
+    color: #c92a2a;
+}
+
+/* ======================= RESET CARD (FULL WIDTH) ======================= */
+.reset-card {
+    margin-top: 25px;
+
+    width: 100%;
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+
+    background: #ffffff;                /* khung trắng giống 3 card trên */
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.1);
+
+    text-align: center;
+}
+
+/* Button bên trong khung reset */
+.reset-small {
+    padding: 10px 22px;
+    font-size: 1rem;
+    font-weight: bold;
+
+    color: #d6336c;
+    background: transparent;
+    border: 2px solid #d6336c;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+.reset-small:hover {
+    background: #d6336c;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Không cho card phóng to */
+.card:hover {
+    transform: none !important;
+}

@@ -1,0 +1,100 @@
+package controller;
+
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+
+@WebServlet("/keygen")
+public class KeyGenServlet extends HttpServlet {
+
+    private static final SecureRandom random = new SecureRandom();
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        String type = request.getParameter("type");
+
+        try {
+            KeyPair keyPair;
+
+            if ("manual".equals(type)) {
+                BigInteger q = new BigInteger(request.getParameter("q"));
+                BigInteger a = new BigInteger(request.getParameter("a"));
+                BigInteger x = new BigInteger(request.getParameter("x"));
+
+                // Kiểm tra điều kiện cơ bản
+                if (!q.isProbablePrime(100)) throw new Exception("q phải là số nguyên tố!");
+                if (x.compareTo(BigInteger.ONE) < 0 || x.compareTo(q.subtract(BigInteger.valueOf(2))) > 0)
+                    throw new Exception("x phải nằm trong khoảng 1 ≤ x ≤ q-2!");
+
+                BigInteger y = a.modPow(x, q);
+                keyPair = new KeyPair(q, a, x, y);
+
+            } else { // auto
+                BigInteger q = BigInteger.probablePrime(16, random); // q ~ 16-bit
+                BigInteger a = findPrimitiveRoot(q);
+                BigInteger x = new BigInteger(q.bitLength() - 1, random)
+                        .mod(q.subtract(BigInteger.valueOf(2)))
+                        .add(BigInteger.ONE); // 1 ≤ x ≤ q-2
+
+                BigInteger y = a.modPow(x, q);
+                keyPair = new KeyPair(q, a, x, y);
+            }
+
+            // LƯU KHÓA VÀO SESSION
+            session.setAttribute("keyPair", keyPair);
+            session.setAttribute("keyGenerated", true);
+
+            // LƯU LẠI GIÁ TRỊ ĐỂ HIỆN LÊN INPUT
+            session.setAttribute("inputQ", keyPair.getQ().toString());
+            session.setAttribute("inputA", keyPair.getA().toString());
+            session.setAttribute("inputX", keyPair.getX().toString());
+
+            // Xóa lỗi cũ
+            session.removeAttribute("keygenError");
+
+        } catch (Exception e) {
+            session.setAttribute("keygenError", e.getMessage());
+            session.removeAttribute("keyGenerated");
+        }
+
+        response.sendRedirect("index.jsp");
+    }
+
+    // Tìm căn nguyên thủy đơn giản
+    private BigInteger findPrimitiveRoot(BigInteger q) {
+        for (BigInteger i = BigInteger.valueOf(2); i.compareTo(q) < 0; i++) {
+            if (isPrimitiveRoot(i, q)) return i;
+        }
+        return BigInteger.valueOf(2);
+    }
+
+    private boolean isPrimitiveRoot(BigInteger g, BigInteger q) {
+        BigInteger qMinus1 = q.subtract(BigInteger.ONE);
+        for (BigInteger factor : qMinus1.factorize()) { // đơn giản hóa
+            if (g.modPow(qMinus1.divide(factor), q).equals(BigInteger.ONE)) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+// Class KeyPair đơn giản
+class KeyPair {
+    private final BigInteger q, a, x, y;
+
+    public KeyPair(BigInteger q, BigInteger a, BigInteger x, BigInteger y) {
+        this.q = q; this.a = a; this.x = x; this.y = y;
+    }
+
+    public BigInteger getQ() { return q; }
+    public BigInteger getA() { return a; }
+    public BigInteger getX() { return x; }
+    public BigInteger getY() { return y; }
+}

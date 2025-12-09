@@ -1,0 +1,9 @@
+INDEX VERSION 1.4+D:\anm\.metadata\.plugins\org.eclipse.wst.jsdt.core\indexes
+792117201.index
+2813921703.index
+3977205476.index
+2813921703.index
+3197746276.index
+2962248101.index
+3736437053.index
+2467121298.index

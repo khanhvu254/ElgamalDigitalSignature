@@ -1,0 +1,67 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+
+@WebServlet("/keygen")
+public class KeyGenServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        String type = request.getParameter("type");
+        String errorMsg = null;
+        ElgamalKey keyPair = null;
+
+        try {
+            if ("auto".equals(type)) {
+                // Sinh khóa 512-bit NHANH + ỔN ĐỊNH (giảm bit nếu cần test nhanh)
+                keyPair = ElgamalModel.generateKeyPair(256); // 256-bit là đủ an toàn và cực nhanh
+                // Nếu muốn 512-bit thật thì đổi thành 512, nhưng 256-bit vẫn rất mạnh và không lag
+            } 
+            else if ("manual".equals(type)) {
+                String qStr = request.getParameter("q");
+                String aStr = request.getParameter("a");
+                String xStr = request.getParameter("x");
+
+                if (qStr == null || qStr.trim().isEmpty() ||
+                    aStr == null || aStr.trim().isEmpty() ||
+                    xStr == null || xStr.trim().isEmpty()) {
+                    errorMsg = "Vui lòng nhập đầy đủ q, a, x!";
+                } else {
+                    BigInteger q = new BigInteger(qStr.trim());
+                    BigInteger a = new BigInteger(aStr.trim());
+                    BigInteger x = new BigInteger(xStr.trim());
+
+                    // Dùng chính phương thức createFromValues để nó tự kiểm tra điều kiện
+                    keyPair = ElgamalModel.createFromValues(q, a, x);
+                }
+            }
+
+            if (keyPair != null) {
+                session.setAttribute("keyPair", keyPair);
+            }
+
+        } catch (IllegalArgumentException e) {
+            errorMsg = e.getMessage(); // Lấy đúng thông báo lỗi từ model (q không nguyên tố, a không phải căn nguyên thủy, v.v.)
+        } catch (Exception e) {
+            errorMsg = "Lỗi không xác định: " + e.getMessage();
+        }
+
+        // Luôn lưu lỗi (nếu có) và quay lại index.jsp – KHÔNG redirect chỗ khác
+        if (errorMsg != null) {
+            session.setAttribute("keygenError", errorMsg);
+        } else {
+            session.removeAttribute("keygenError");
+        }
+
+        response.sendRedirect("index.jsp");
+    }
+}

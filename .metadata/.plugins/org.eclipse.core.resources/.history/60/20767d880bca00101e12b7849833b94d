@@ -1,0 +1,76 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import model.Signature;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Date;
+import java.util.List;
+
+@WebServlet("/sign")
+@MultipartConfig
+public class SignServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        ElgamalKey keyPair = (ElgamalKey) session.getAttribute("keyPair");
+
+        if (keyPair == null || !keyPair.hasPrivateKey()) {
+            request.setAttribute("error", "Vui lòng tạo khóa trước!");
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+            return;
+        }
+
+        String message = request.getParameter("message");
+        Part filePart = request.getPart("file");
+
+        if ((message == null || message.trim().isEmpty()) && filePart != null && filePart.getSize() > 0) {
+            message = new String(filePart.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        if (message == null || message.trim().isEmpty()) {
+            request.setAttribute("error", "Vui lòng nhập văn bản hoặc tải file!");
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+            return;
+        }
+
+        try {
+            Signature signature = ElgamalModel.sign(message, keyPair);
+
+            // CHUYỂN r, s sang Base64
+            String rBase64 = Base64.getEncoder().encodeToString(signature.getR().toByteArray());
+            String sBase64 = Base64.getEncoder().encodeToString(signature.getS().toByteArray());
+
+            // TẠO JSON ĐẸP
+            String plainSignature = signature.getR() + ", " + signature.getS();
+
+            // Lưu lịch sử
+            List<String> history = (List<String>) session.getAttribute("history");
+            if (history == null) history = new ArrayList<>();
+            String shortMsg = message.length() > 40 ? message.substring(0, 40) + "..." : message;
+            history.add(0, "[" + new Date() + "] Đã ký: " + shortMsg);
+            session.setAttribute("history", history);
+
+            // Gửi dữ liệu về JSP
+            request.setAttribute("messageContent", message);
+            request.setAttribute("signature", plainSignature);
+            request.setAttribute("signatureBase64", rBase64 + ":" + sBase64); // Dùng để tải file nếu cần
+
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            request.setAttribute("error", "Lỗi ký: " + e.getMessage());
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+        }
+    }
+}

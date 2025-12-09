@@ -1,0 +1,61 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import model.Signature;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+@WebServlet("/sign")
+@MultipartConfig
+public class SignServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        ElgamalKey keyPair = (ElgamalKey) session.getAttribute("keyPair");
+
+        if (keyPair == null || !keyPair.hasPrivateKey()) {
+            response.sendRedirect("index.jsp");
+            return;
+        }
+
+        String message = request.getParameter("message");
+        Part filePart = request.getPart("file");
+
+        if ((message == null || message.trim().isEmpty()) && filePart.getSize() > 0) {
+            message = new String(filePart.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        if (message == null || message.trim().isEmpty()) {
+            request.setAttribute("error", "Vui lòng nhập văn bản hoặc tải file!");
+            request.getRequestDispatcher("sign.jsp").forward(request, response);
+            return;
+        }
+
+        try {
+            Signature signature = ElgamalModel.sign(message, keyPair);
+
+            // Lưu lịch sử
+            List<String> history = (List<String>) session.getAttribute("history");
+            if (history == null) history = new ArrayList<>();
+            history.add(0, "[" + new Date() + "] Đã ký: " + message.substring(0, Math.min(50, message.length())) + "...");
+            session.setAttribute("history", history);
+
+            request.setAttribute("message", message.length() > 200 ? message.substring(0, 200) + "..." : message);
+            request.setAttribute("signature", signature);
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            request.setAttribute("error", "Lỗi ký: " + e.getMessage());
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+        }
+    }
+}

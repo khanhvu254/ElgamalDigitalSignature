@@ -1,0 +1,164 @@
+/* ===== Toàn trang ===== */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #5b3cc4, #6d5dfc, #4bb4ff);
+    background-size: cover;
+    min-height: 100vh;
+    color: #333;
+}
+
+/* Tiêu đề chính */
+.page-title {
+    text-align: center;
+    font-size: 36px;
+    font-weight: bold;
+    color: white;
+    margin-top: 30px;
+}
+
+.page-desc {
+    text-align: center;
+    color: #f0f0f0;
+    margin-bottom: 30px;
+}
+
+/* ===== KHUNG 3 BƯỚC ===== */
+.box-container {
+    width: 80%;
+    margin: auto;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Mỗi khung */
+.box {
+    width: 30%;
+    background: white;
+    padding: 25px;
+    border-radius: 14px;
+
+    /* VIỀN MỚI – hiệu ứng neon tím xanh */
+    border: 3px solid transparent;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(135deg, #8a4bff, #00d4ff);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+/* Tiêu đề mỗi Bước */
+.box-title {
+    background: linear-gradient(to right, #7a42ff, #4a35d1);
+    color: white;
+    text-align: center;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+/* ===== Input, textarea ===== */
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #b8b8ff;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    outline: none;
+    transition: 0.25s;
+}
+
+input:focus, textarea:focus {
+    border-color: #7a42ff;
+    box-shadow: 0 0 6px rgba(122, 66, 255, 0.5);
+}
+
+/* Nút chung */
+.btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    color: white;
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+    transition: 0.25s;
+}
+
+/* Nút tạo khóa */
+.btn-purple {
+    background: linear-gradient(to right, #6e3bff, #5033e6);
+}
+.btn-purple:hover {
+    opacity: 0.85;
+}
+
+/* Nút tạo ngẫu nhiên */
+.btn-green {
+    background: linear-gradient(to right, #29cc74, #00a85a);
+}
+.btn-green:hover {
+    opacity: 0.85;
+}
+
+/* Nút ký tài liệu và xác minh */
+.btn-blue {
+    background: linear-gradient(to right, #5b5bff, #3c3ccc);
+}
+.btn-blue:hover {
+    opacity: 0.85;
+}
+
+/* Vùng hiển thị khóa, chữ ký */
+.display-box {
+    width: 100%;
+    background: #f8f8ff;
+    border: 2px dashed #b8b8ff;
+    padding: 12px;
+    min-height: 80px;
+    border-radius: 10px;
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+/* ===== KHUNG RESET ===== */
+
+.reset-container {
+    width: 80%;
+    margin: 25px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+
+    /* viền neon giống các bước */
+    border: 3px solid transparent;
+    background-image:
+        linear-gradient(white, white),
+        linear-gradient(135deg, #ff5757, #ff9a3d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+
+    text-align: center;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+/* Nút reset – nhỏ lại */
+.reset-btn {
+    padding: 10px 20px;
+    background: linear-gradient(to right, #ff4b4b, #ff2d2d);
+    color: white;
+    font-size: 14px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    width: 200px;      /* NHỎ LẠI */
+    transition: 0.25s;
+}
+
+.reset-btn:hover {
+    opacity: 0.85;
+}

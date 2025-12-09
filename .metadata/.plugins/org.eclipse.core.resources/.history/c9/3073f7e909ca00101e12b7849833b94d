@@ -1,0 +1,263 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chữ Ký Số ElGamal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; padding: 30px 0; }
+        .container { max-width: 1450px; }
+        .card { border: none; border-radius: 20px; overflow: hidden; box-shadow: 0 12px 35px rgba(0,0,0,0.25); }
+        .card-header { background: linear-gradient(90deg, #667eea, #764ba2); color: white; font-weight: bold; font-size: 1.3rem; padding: 18px; }
+
+        /* Ô HIỂN THỊ ĐỒNG NHẤT CHO KHÓA & CHỮ KÝ */
+        .result-box {
+            position: relative;
+            background: white;
+            border-radius: 14px;
+            padding: 18px 55px 18px 18px;
+            margin-top: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.15rem;
+            word-break: break-all;
+            border-left: 6px solid;
+        }
+        .public-box   { border-left-color: #1976d2; }
+        .private-box  { border-left-color: #d32f2f; }
+        .signature-box { border-left-color: #28a745; }
+
+        .box-title {
+            font-weight: bold;
+            font-size: 1.05rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+        .public-title   { color: #0d47a1; }
+        .private-title  { color: #b71c1c; }
+        .sig-title      { color: #155724; }
+
+        .copy-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            color: #666;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .copy-btn:hover { color: #000; }
+
+        .btn-danger { background: #dc3545; border: none; }
+        .btn-danger:hover { background: #c82333; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="text-center text-white mb-5">
+        <h1 class="display-5 fw-bold">HỆ THỐNG CHỮ KÝ SỐ ELGAMAL</h1>
+        <p class="lead">Tạo khóa → Ký → Xác minh</p>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- BƯỚC 1: TẠO KHÓA -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">BƯỚC 1: TẠO KHÓA</div>
+                <div class="card-body">
+
+                    <form action="keygen" method="post" class="mb-3">
+                        <input type="hidden" name="type" value="manual">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Số nguyên tố q</label>
+                            <input type="text" class="form-control" name="q" value="${sessionScope.lastQ}" placeholder="Nhập q" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Căn nguyên thủy α (a)</label>
+                            <input type="text" class="form-control" name="a" value="${sessionScope.lastA}" placeholder="Nhập a" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Khóa bí mật x</label>
+                            <input type="text" class="form-control" name="x" value="${sessionScope.lastX}" placeholder="Nhập x" required>
+                        </div>
+                        <div class="d-grid d-md-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill">Tạo khóa từ dữ liệu</button>
+                            <button type="button" onclick="resetKey()" class="btn btn-danger text-white">Reset khóa</button>
+                        </div>
+                    </form>
+
+                    <form action="keygen" method="post">
+                        <input type="hidden" name="type" value="auto">
+                        <button type="submit" class="btn btn-success w-100">Tạo khóa ngẫu nhiên</button>
+                    </form>
+
+                    <c:if test="${not empty sessionScope.keygenError}">
+                        <div class="alert alert-danger mt-3 small">${sessionScope.keygenError}</div>
+                    </c:if>
+
+                    <!-- KHÓA ĐÃ TẠO - ĐÓNG KHUNG ĐẸP -->
+                    <c:if test="${sessionScope.keyGenerated == true}">
+                        <div class="result-box public-box">
+                            <span class="box-title public-title">Khóa công khai</span>
+                            <div>${sessionScope.keyPair.q}, ${sessionScope.keyPair.a}, ${sessionScope.keyPair.y}</div>
+                            <button class="copy-btn" onclick="copyText('${sessionScope.keyPair.q}, ${sessionScope.keyPair.a}, ${sessionScope.keyPair.y}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+
+                        <div class="result-box private-box mt-3">
+                            <span class="box-title private-title">Khóa bí mật</span>
+                            <div>${sessionScope.keyPair.x}</div>
+                            <button class="copy-btn" onclick="copyText('${sessionScope.keyPair.x}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </c:if>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 2: KÝ TÀI LIỆU -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">BƯỚC 2: KÝ TÀI LIỆU</div>
+                <div class="card-body">
+
+                    <c:if test="${not empty requestScope.error}">
+                        <div class="alert alert-danger small">${requestScope.error}</div>
+                    </c:if>
+
+                    <c:if test="${sessionScope.keyGenerated != true}">
+                        <p class="text-muted text-center fst-italic">Vui lòng tạo khóa trước</p>
+                    </c:if>
+
+                    <c:if test="${sessionScope.keyGenerated == true}">
+                        <form action="sign" method="post" enctype="multipart/form-data">
+                            <label class="form-label fw-bold">Nhập Tài Liệu Cần Ký</label>
+                            <textarea class="form-control mb-3" rows="6" name="message" placeholder="Văn bản cần ký..." required>${requestScope.messageContent}</textarea>
+                            <div class="text-center text-muted mb-2">HOẶC</div>
+                            <label class="form-label">Tải file văn bản cần ký</label>
+                            <input type="file" class="form-control mb-3" name="file">
+                            <button type="submit" class="btn btn-primary w-100">Ký tài liệu</button>
+                        </form>
+
+                        <!-- CHỮ KÝ ĐÃ TẠO - CHỈ HIỆN r, s -->
+                        <c:if test="${not empty requestScope.signature}">
+                            <div class="result-box signature-box mt-4">
+                                <span class="box-title sig-title">Chữ ký đã tạo</span>
+                                <div>${requestScope.signature}</div>
+                                <button class="copy-btn" onclick="copyText('${requestScope.signature}')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+
+                            <hr style="border-top: 2px dashed #28a745; margin: 25px 0;">
+
+                            <label class="form-label fw-bold">Lưu chữ ký</label>
+                            <div class="row g-2 mb-2">
+                                <div class="col-8">
+                                    <input type="text" class="form-control" id="filename" value="chuky_elgamal" placeholder="Tên file">
+                                </div>
+                                <div class="col-4">
+                                    <select class="form-select" id="fileext">
+                                        <option value=".txt">.txt</option>
+                                        <option value=".sig">.sig</option>
+                                        <option value=".json">.json</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="downloadSignature()" class="btn btn-success w-100">Lưu chữ ký</button>
+                        </c:if>
+                    </c:if>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 3: XÁC MINH -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">BƯỚC 3: XÁC MINH</div>
+                <div class="card-body">
+                    <form action="verify" method="post">
+                        <input class="form-control form-control-sm mb-2" name="q" placeholder="q" required>
+                        <input class="form-control form-control-sm mb-2" name="a" placeholder="a" required>
+                        <input class="form-control form-control-sm mb-2" name="y" placeholder="y" required>
+                        <input class="form-control form-control-sm mb-2" name="r" placeholder="r" required>
+                        <input class="form-control form-control-sm mb-2" name="s" placeholder="s" required>
+                        <textarea class="form-control mb-3" rows="3" name="message" placeholder="Nội dung gốc..." required></textarea>
+                        <button type="submit" class="btn btn-info text-white w-100">Xác minh</button>
+                    </form>
+                    <c:if test="${not empty requestScope.valid}">
+                        <div class="alert ${requestScope.valid ? 'alert-success' : 'alert-danger'} text-center mt-3">
+                            <h5 class="mb-0">${requestScope.valid ? 'HỢP LỆ' : 'KHÔNG HỢP LỆ'}</h5>
+                        </div>
+                    </c:if>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LỊCH SỬ -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Lịch sử hành động</h5>
+                        <button type="button" onclick="clearAll()" class="btn btn-danger btn-sm">Xóa tất cả</button>
+                    </div>
+                    <c:choose>
+                        <c:when test="${not empty sessionScope.history}">
+                            <ul class="list-group list-group-flush">
+                                <c:forEach var="item" items="${sessionScope.history}">
+                                    <li class="list-group-item small">${item}</li>
+                                </c:forEach>
+                            </ul>
+                        </c:when>
+                        <c:otherwise>
+                            <p class="text-muted mb-0">Chưa có hành động nào.</p>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function resetKey() { fetch('resetkey', { method: 'POST' }).then(() => location.reload()); }
+    function clearAll() { fetch('clearall', { method: 'POST' }).then(() => location.reload()); }
+
+    function copyText(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert("Đã sao chép vào clipboard!");
+        });
+    }
+
+    function downloadSignature() {
+        const text = "${requestScope.signature}";
+        const filename = document.getElementById('filename').value.trim() || 'chuky_elgamal';
+        const ext = document.getElementById('fileext').value;
+        const fullName = filename + ext;
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fullName; a.click();
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.math.BigInteger" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hệ thống Chữ ký số ElGamal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        function readFile(input, targetId) {
+            let file = input.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = function() {
+                document.getElementById(targetId).value = reader.result;
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <h1>Chữ Ký Số ElGamal</h1>
+    <p class="subtitle">Hệ thống chữ ký số ElGamal - Thực hiện theo thứ tự từ bước 1 đến bước 3</p>
+
+    <% if(request.getAttribute("error") != null) { %>
+        <div class="alert alert-danger"><%= request.getAttribute("error") %></div>
+    <% } %>
+    <% if(session.getAttribute("msg_gen") != null) { %>
+        <div class="alert alert-success"><%= session.getAttribute("msg_gen") %></div>
+        <% session.removeAttribute("msg_gen"); %>
+    <% } %>
+
+    <div class="grid-container">
+
+        <!-- BƯỚC 1: TẠO KHÓA -->
+        <div class="card">
+            <div class="card-header" style="background: #6a5acd;">BƯỚC 1: TẠO KHÓA</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="generateKeys">
+
+                    <label>Số nguyên tố p</label>
+                    <input type="text" name="p" placeholder="Nhập p..." value="${sessionScope.key_p}">
+
+                    <label>Số căn nguyên alpha</label>
+                    <input type="text" name="alpha" placeholder="Nhập alpha..." value="${sessionScope.key_alpha}">
+
+                    <label>Khóa bí mật x</label>
+                    <input type="text" name="x" placeholder="Nhập x..." value="${sessionScope.key_x}">
+
+                    <div style="display: flex; gap: 10px;">
+                        <button type="reset" class="btn btn-secondary" style="width: 30%">Reset</button>
+                        <button type="submit" name="genMode" value="input" class="btn btn-primary">Tạo khóa từ đầu vào</button>
+                    </div>
+                    <div style="text-align: center; margin: 10px 0;">hoặc</div>
+                    <button type="submit" name="genMode" value="random" class="btn btn-success">Tạo khóa ngẫu nhiên (512 bit)</button>
+                </form>
+
+                <div class="result-box">
+                    <strong>Khóa công khai (Public Key):</strong><br>
+                    <% if(session.getAttribute("key_y") != null) { %>
+                        <span style="color: green">Đã có khóa hợp lệ!</span><br>
+                        y = ${sessionScope.key_y}<br>
+                        p = ${sessionScope.key_p}<br>
+                        α = ${sessionScope.key_alpha}
+                    <% } else { %>
+                        Chưa có khóa được sinh.
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 2: KÝ TÀI LIỆU -->
+        <div class="card">
+            <div class="card-header" style="background: #6a5acd;">BƯỚC 2: KÝ TÀI LIỆU</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="sign">
+
+                    <label>Văn bản cần ký</label>
+                    <textarea name="docContent" id="docContent" placeholder="Nhập văn bản hoặc tải file...">${sessionScope.last_signed_doc}</textarea>
+
+                    <div class="file-upload-wrapper">
+                        <input type="file" onchange="readFile(this, 'docContent')">
+                        <span>← Tải file văn bản</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Ký tài liệu</button>
+                </form>
+
+                <div class="result-box">
+                    <strong>Chữ Ký Số (r, s):</strong><br>
+                    <% if(session.getAttribute("last_sign_r") != null) { %>
+                        <strong>r:</strong> <%= session.getAttribute("last_sign_r") %><br>
+                        <strong>s:</strong> <%= session.getAttribute("last_sign_s") %>
+                    <% } else { %>
+                        Chưa có chữ ký nào được tạo trong phiên này.
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 3: XÁC MINH CHỮ KÝ -->
+        <div class="card">
+            <div class="card-header" style="background: #6a5acd;">BƯỚC 3: XÁC MINH CHỮ KÝ</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="verify">
+
+                    <label>Chữ ký (dạng r,s)</label>
+                    <textarea name="sigVerifyR" id="sigVerify" placeholder="Dán hoặc tải chữ ký r,s...">${sessionScope.last_sign_r != null ? sessionScope.last_sign_r + "," + sessionScope.last_sign_s : ''}</textarea>
+                    <div class="file-upload-wrapper">
+                        <input type="file" onchange="readFile(this, 'sigVerify')">
+                    </div>
+
+                    <label>Văn bản cần xác minh</label>
+                    <textarea name="docVerify" id="docVerify" placeholder="Nhập hoặc tải văn bản gốc...">${sessionScope.last_signed_doc}</textarea>
+                    <div class="file-upload-wrapper">
+                        <input type="file" onchange="readFile(this, 'docVerify')">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Xác minh chữ ký</button>
+                </form>
+
+                <div style="margin-top: 20px;">
+                    <label>Kết quả xác minh</label>
+                    <% if(request.getAttribute("verify_checked") != null) {
+                        boolean isValid = (Boolean)request.getAttribute("verify_result");
+                    %>
+                        <div class="alert <%= isValid ? "alert-success" : "alert-danger" %>" style="text-align: center; font-weight: bold; font-size: 18px;">
+                            <%= isValid ? "CHỮ KÝ HỢP LỆ" : "CHỮ KÝ KHÔNG HỢP LỆ / ĐÃ BỊ THAY ĐỔI" %>
+                        </div>
+                    <% } else { %>
+                        <div class="result-box">Chưa thực hiện xác minh</div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- LỊCH SỬ HOẠT ĐỘNG (bonus) -->
+        <div class="card">
+            <div class="card-header" style="background: #6a5acd;">LỊCH SỬ HOẠT ĐỘNG</div>
+            <div class="card-body">
+                <textarea readonly style="height: 200px; background:#f8f9fa; font-size:12px;">${sessionScope.history != null ? sessionScope.history : 'Chưa có hoạt động nào trong phiên này.'}</textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer-actions">
+        <form action="process" method="post" style="display: inline;">
+            <input type="hidden" name="action" value="reset">
+            <button type="submit" class="btn btn-danger">Xóa tất cả dữ liệu phiên</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

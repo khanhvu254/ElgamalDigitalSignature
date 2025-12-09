@@ -1,0 +1,84 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import model.Signature;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+
+@WebServlet("/verify")
+@MultipartConfig
+public class VerifyServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        ElgamalKey keyPair = (ElgamalKey) session.getAttribute("keyPair");
+
+        if (keyPair == null) {
+            request.setAttribute("valid", false);
+            request.setAttribute("error", "Chưa tạo khóa!");
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+            return;
+        }
+
+        ElgamalKey publicKey = new ElgamalKey(keyPair.getQ(), keyPair.getA(), keyPair.getY());
+
+        String message = null;
+        BigInteger r = null, s = null;
+
+        Part msgPart = request.getPart("messageFile");
+        Part sigPart = request.getPart("signatureFile");
+
+        if (msgPart != null && msgPart.getSize() > 0 && sigPart != null && sigPart.getSize() > 0) {
+            message = new String(msgPart.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            String sigText = new String(sigPart.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+
+            String[] parts = sigText.split(",");
+            if (parts.length < 2) {
+                request.setAttribute("valid", false);
+                request.setAttribute("error", "File chữ ký phải có ít nhất r,s");
+                request.getRequestDispatcher("index.jsp").forward(request, response);
+                return;
+            }
+            r = new BigInteger(parts[0].trim());
+            s = new BigInteger(parts[1].trim());
+        } else {
+            String rStr = request.getParameter("r");
+            String sStr = request.getParameter("s");
+            message = request.getParameter("message");
+
+            if (rStr == null || sStr == null || message == null || message.trim().isEmpty()) {
+                request.setAttribute("valid", false);
+                request.setAttribute("error", "Thiếu dữ liệu xác minh!");
+                request.getRequestDispatcher("index.jsp").forward(request, response);
+                return;
+            }
+
+            try {
+                r = new BigInteger(rStr.trim());
+                s = new BigInteger(sStr.trim());
+            } catch (Exception e) {
+                request.setAttribute("valid", false);
+                request.setAttribute("error", "r hoặc s không hợp lệ!");
+                request.getRequestDispatcher("index.jsp").forward(request, response);
+                return;
+            }
+        }
+
+        boolean valid = ElgamalModel.verify(message, r, s, publicKey);
+        request.setAttribute("valid", valid);
+        if (!valid) {
+            request.setAttribute("error", "CHỮ KÝ KHÔNG HỢP LỆ!");
+        }
+
+        request.getRequestDispatcher("index.jsp").forward(request, response);
+    }
+}

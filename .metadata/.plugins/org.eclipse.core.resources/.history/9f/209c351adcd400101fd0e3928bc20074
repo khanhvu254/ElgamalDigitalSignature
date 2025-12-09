@@ -1,0 +1,138 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.math.BigInteger" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hệ thống Chữ ký số ElGamal</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <script>
+        function readFile(input, targetId) {
+            let file = input.files[0];
+            let reader = new FileReader();
+            reader.onload = function() {
+                document.getElementById(targetId).value = reader.result;
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <h1>Chữ Ký Số ElGamal</h1>
+    <p class="subtitle">Hệ thống chữ ký số ElGamal</p>
+
+    <% if(request.getAttribute("error") != null) { %>
+        <div class="alert alert-danger"><%= request.getAttribute("error") %></div>
+    <% } %>
+
+    <div class="grid-container">
+
+        <!-- BƯỚC 1 -->
+        <div class="card">
+            <div class="card-header">BƯỚC 1: TẠO KHÓA</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="generateKeys">
+
+                    <label>Số nguyên tố p</label>
+                    <input type="text" name="p" value="${sessionScope.key_p}">
+
+                    <label>Số căn nguyên alpha</label>
+                    <input type="text" name="alpha" value="${sessionScope.key_alpha}">
+
+                    <label>Khóa bí mật x</label>
+                    <input type="text" name="x" value="${sessionScope.key_x}">
+
+                    <button type="submit" name="genMode" value="input" class="btn btn-primary">Tạo khóa từ đầu vào</button>
+                    <button type="submit" name="genMode" value="random" class="btn btn-success">Tạo khóa ngẫu nhiên</button>
+                </form>
+
+                <div class="result-box">
+                    <strong>Khóa đã tạo:</strong><br>
+                    <% if(session.getAttribute("key_y") != null) { %>
+                        Public Key (y): ${sessionScope.key_y}
+                    <% } else { %>
+                        Chưa có khóa.
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 2 -->
+        <div class="card">
+            <div class="card-header">BƯỚC 2: KÝ TÀI LIỆU</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="sign">
+
+                    <label>Văn bản cần ký</label>
+                    <textarea name="docContent" id="docContent">${sessionScope.last_signed_doc}</textarea>
+
+                    <input type="file" onchange="readFile(this, 'docContent')">
+
+                    <button type="submit" class="btn btn-primary">Ký tài liệu</button>
+                </form>
+
+                <div class="result-box">
+                    <strong>Chữ ký (r, s):</strong><br>
+                    r: ${sessionScope.sign_r}<br>
+                    s: ${sessionScope.sign_s}
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 3 -->
+        <div class="card">
+            <div class="card-header">BƯỚC 3: XÁC MINH</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="verify">
+
+                    <label>Chữ ký (r,s)</label>
+                    <textarea name="sigVerifyR" id="sigVerify">
+${requestScope.verify_r != null ? requestScope.verify_r : sessionScope.sign_r},
+${requestScope.verify_s != null ? requestScope.verify_s : sessionScope.sign_s}
+                    </textarea>
+
+                    <input type="file" onchange="readFile(this, 'sigVerify')">
+
+                    <label>Văn bản gốc</label>
+                    <textarea name="docVerify" id="docVerify">
+${requestScope.verify_doc != null ? requestScope.verify_doc : sessionScope.last_signed_doc}
+                    </textarea>
+
+                    <input type="file" onchange="readFile(this, 'docVerify')">
+
+                    <button type="submit" class="btn btn-primary">Xác minh</button>
+                </form>
+
+                <div style="margin-top:20px;">
+                    <% if(request.getAttribute("verify_checked") != null) { 
+                        boolean ok = (Boolean) request.getAttribute("verify_result");
+                    %>
+                        <div class="alert <%= ok ? "alert-success" : "alert-danger" %>">
+                            <%= ok ? "CHỮ KÝ HỢP LỆ" : "CHỮ KÝ KHÔNG HỢP LỆ" %>
+                        </div>
+                    <% } else { %>
+                        <div class="result-box">Chưa kiểm tra</div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer-actions">
+        <form action="process" method="post">
+            <input type="hidden" name="action" value="reset">
+            <button class="btn btn-danger">Xóa tất cả dữ liệu</button>
+        </form>
+    </div>
+
+</div>
+</body>
+</html>

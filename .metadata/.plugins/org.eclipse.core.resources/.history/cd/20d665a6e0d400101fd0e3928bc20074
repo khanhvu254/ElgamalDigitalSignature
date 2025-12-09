@@ -1,0 +1,217 @@
+<%@ page 
+    language="java" 
+    contentType="text/html; charset=UTF-8" 
+    pageEncoding="UTF-8"
+%>
+<%@ page import="java.math.BigInteger" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Chữ ký số ElGamal</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+    
+    <script>
+        function readFile(input, targetId) {
+            let file = input.files[0];
+            if (!file) return;
+            
+            let reader = new FileReader();
+            reader.onload = function() {
+                document.getElementById(targetId).value = reader.result;
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <h1>Chữ Ký Số ElGamal</h1>
+    <p class="subtitle">Hệ thống chữ ký số ElGamal - Thực hiện theo thứ tự từ bước 1 đến bước 3</p>
+
+    <% 
+    if(request.getAttribute("error") != null) { 
+    %>
+        <div class="alert alert-danger">❌ <%= request.getAttribute("error") %></div>
+    <% 
+    } 
+    %>
+    
+    <% 
+    // Lấy chữ ký từ session/request để giữ lại sau verify
+    String signR = (String) request.getAttribute("sign_r");
+    String signS = (String) request.getAttribute("sign_s");
+    String lastSignedDoc = (String) request.getAttribute("last_signed_doc");
+    
+    if (signR == null) {
+        signR = (String) session.getAttribute("sign_r_session");
+        signS = (String) session.getAttribute("sign_s_session");
+    }
+    if (lastSignedDoc == null) {
+        lastSignedDoc = (String) session.getAttribute("last_signed_doc_session");
+    }
+    
+    String docContentValue = (String) request.getParameter("docContent");
+    if(docContentValue == null) {
+        docContentValue = lastSignedDoc != null ? lastSignedDoc : "";
+    }
+    %>
+
+    <div class="grid-container">
+        
+        <div class="card">
+            <div class="card-header">BƯỚC 1: TẠO KHÓA</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="generateKeys">
+                    
+                    <label>Số nguyên tố p</label>
+                    <input type="text" name="p" placeholder="Nhập số nguyên tố p..." value="${sessionScope.key_p != null ? sessionScope.key_p : ''}">
+                    
+                    <label>Số căn nguyên alpha</label>
+                    <input type="text" name="alpha" placeholder="Nhập số căn nguyên alpha..." value="${sessionScope.key_alpha != null ? sessionScope.key_alpha : ''}">
+                    
+                    <label>Khóa bí mật x</label>
+                    <input type="text" name="x" placeholder="Nhập khóa bí mật x..." value="${sessionScope.key_x != null ? sessionScope.key_x : ''}">
+                    
+                    <div class="button-group">
+                        <button type="reset" class="btn btn-secondary" style="flex: 0 0 30%">Xóa Form</button>
+                        <button type="submit" name="genMode" value="input" class="btn btn-primary" style="flex: 1">Tạo khóa từ đầu vào</button>
+                    </div>
+                    
+                    <div class="divider-text">hoặc</div>
+                    
+                    <button type="submit" name="genMode" value="random" class="btn btn-success">Tạo khóa ngẫu nhiên</button>
+                </form>
+
+                <div class="result-box">
+                    <strong>Khóa Đã Sinh:</strong>
+                    <% 
+                    if(session.getAttribute("key_y") != null) { 
+                    %>
+                        <span class="success-text">Khóa Đã Tạo Thành Công!</span><br>
+                        
+                        <strong style="color: #667eea; margin-top: 10px; font-size: 13px;">Khóa Công Khai (p, $\alpha$, y):</strong>
+                        <span style="color: #555; display: block; margin-top: 5px;">p:</span>
+                        <span style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">${sessionScope.key_p}</span>
+                        
+                        <span style="color: #555; display: block;">$\alpha$:</span>
+                        <span style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">${sessionScope.key_alpha}</span>
+                        
+                        <span style="color: #555; display: block;">y:</span>
+                        <span style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">${sessionScope.key_y}</span>
+                        
+                        <strong style="color: #eb3349; margin-top: 10px; font-size: 13px;">Khóa Bí Mật (x):</strong>
+                        <span style="color: #555; display: block; margin-top: 5px;">x:</span>
+                        <span style="font-size: 12px; color: #666; display: block;">${sessionScope.key_x}</span>
+                    <% 
+                    } else { 
+                    %>
+                        <span style="color: #999">Chưa có khóa được sinh.</span>
+                    <% 
+                    } 
+                    %>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">BƯỚC 2: KÝ TÀI LIỆU</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="sign">
+                    
+                    <label>Văn bản cần ký</label>
+                    <textarea name="docContent" id="docContent" placeholder="Nhập văn bản cần ký..."><%= docContentValue %></textarea>
+                    
+                    <div class="file-upload-wrapper">
+                        <input type="file" accept=".txt" onchange="readFile(this, 'docContent')">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Ký tài liệu</button>
+                </form>
+
+                <div class="result-box">
+                    <strong>Chữ Ký Đã Tạo (r, s):</strong>
+                    <% 
+                    if(signR != null) { 
+                    %>
+                        <span style="color: #555">📌 r:</span><br>
+                        <span style="font-size: 12px; color: #666; margin-bottom: 8px; display: block"><%= signR %></span>
+                        <span style="color: #555">📌 s:</span><br>
+                        <span style="font-size: 12px; color: #666"><%= signS %></span>
+                    <% 
+                    } else { 
+                    %>
+                        <span style="color: #999">Chữ ký sẽ hiển thị ở đây sau khi tạo...</span>
+                    <% 
+                    } 
+                    %>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">BƯỚC 3: XÁC MINH CHỮ KÝ</div>
+            <div class="card-body">
+                <form action="process" method="post">
+                    <input type="hidden" name="action" value="verify">
+                    
+                    <label>Chữ ký (Điền dạng: r,s)</label>
+                    <textarea name="sigVerifyR" id="sigVerify" placeholder="Nhập chữ ký dạng: r,s..."><%
+                        if(request.getAttribute("verify_sig_input") != null){
+                            out.print(request.getAttribute("verify_sig_input"));
+                        } else if(signR != null){
+                            out.print(signR + "," + signS);
+                        }
+                    %></textarea>
+                    <div class="file-upload-wrapper">
+                        <input type="file" accept=".txt" onchange="readFile(this, 'sigVerify')">
+                    </div>
+
+                    <label>Văn bản gốc</label>
+                    <textarea name="docVerify" id="docVerify" placeholder="Nhập văn bản gốc..."><%
+                        if(request.getAttribute("verify_doc_input") != null){
+                            out.print(request.getAttribute("verify_doc_input"));
+                        } else if (lastSignedDoc != null) {
+                            out.print(lastSignedDoc);
+                        }
+                    %></textarea>
+                    <div class="file-upload-wrapper">
+                        <input type="file" accept=".txt" onchange="readFile(this, 'docVerify')">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Xác minh chữ ký</button>
+                </form>
+
+                <div class="verify-result-section">
+                    <label>Kết Quả Kiểm Tra</label>
+                    <% 
+                    if(request.getAttribute("verify_checked") != null) {
+                        boolean isValid = (Boolean)request.getAttribute("verify_result");
+                    %>
+                        <div class="alert <%= isValid ? "alert-success" : "alert-danger" %> verify-result-box">
+                            <%= isValid ? "CHỮ KÝ HỢP LỆ" : "CHỮ KÝ KHÔNG HỢP LỆ / ĐÃ BỊ SỬA ĐỔI" %>
+                        </div>
+                    <% 
+                    } else { 
+                    %>
+                        <div class="result-box">
+                            <span style="color: #999">Chưa kiểm tra</span>
+                        </div>
+                    <% 
+                    } 
+                    %>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    </div>
+
+</body>
+</html>

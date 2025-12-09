@@ -1,0 +1,187 @@
+package model;
+
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ElgamalModel {
+
+    private static final SecureRandom rnd = new SecureRandom();
+    private static final int CERTAINTY = 100;
+
+    public static BigInteger hashToBigInteger(String message, BigInteger q) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(message.getBytes("UTF-8"));
+            return new BigInteger(1, hash).mod(q);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi băm", e);
+        }
+    }
+
+    public static ElgamalKey generateKeyPair(int bitLength) {
+        BigInteger q = BigInteger.probablePrime(bitLength, rnd);
+        BigInteger a = findPrimitiveRoot(q);
+        BigInteger x = new BigInteger(q.bitLength() - 1, rnd)
+                .mod(q.subtract(BigInteger.TWO))
+                .add(BigInteger.ONE);
+        BigInteger y = a.modPow(x, q);
+        return new ElgamalKey(q, a, y, x);
+    }
+
+    public static ElgamalKey createFromValues(BigInteger q, BigInteger a, BigInteger x) {
+        if (!q.isProbablePrime(CERTAINTY))
+            throw new IllegalArgumentException("q phải là số nguyên tố");
+        if (!isPrimitiveRoot(a, q))
+            throw new IllegalArgumentException("α phải là căn nguyên thủy mod q");
+        if (x.compareTo(BigInteger.ONE) < 0 || x.compareTo(q.subtract(BigInteger.TWO)) > 0)
+            throw new IllegalArgumentException("x phải thuộc [1, q-2]");
+        BigInteger y = a.modPow(x, q);
+        return new ElgamalKey(q, a, y, x);
+    }
+
+    // CHỮ KÝ ĐẦY ĐỦ CÓ k
+    public static class FullSignature {
+        private final BigInteger r, s, k;
+        public FullSignature(BigInteger r, BigInteger s, BigInteger k) {
+            this.r = r; this.s = s; this.k = k;
+        }
+        public BigInteger getR() { return r; }
+        public BigInteger getS() { return s; }
+        public BigInteger getK() { return k; }
+        @Override
+        public String toString() { return r + "," + s + "," + k; }
+    }
+
+    // KÝ – CHO PHÉP NHẬP k TAY HOẶC TỰ ĐỘNG
+    public static FullSignature signWithK(String message, ElgamalKey keyPair, BigInteger userK) {
+        BigInteger q = keyPair.getQ();
+        BigInteger a = keyPair.getA();
+        BigInteger x = keyPair.getX();
+        BigInteger m = hashToBigInteger(message, q);
+
+        BigInteger k = userK;
+        boolean autoK = (k == null || k.signum() <= 0);
+
+        do {
+            if (autoK) {
+                // TỰ ĐỘNG CHỌN k NGẪU NHIÊN TRONG [1, q-2] – KHÔNG CẦN gcd
+                k = new BigInteger(q.bitLength(), rnd)
+                        .mod(q.subtract(BigInteger.TWO))
+                        .add(BigInteger.ONE); // 1 ≤ k ≤ q-2
+            } else {
+                // CHỈ KIỂM TRA ĐIỀU KIỆN DUY NHẤT: 1 ≤ k ≤ q-2
+                if (k.compareTo(BigInteger.ONE) < 0 || k.compareTo(q.subtract(BigInteger.TWO)) > 0) {
+                    throw new IllegalArgumentException("k phải nằm trong khoảng [1, " + (q.subtract(BigInteger.TWO)) + "]");
+                }
+                // BỎ HOÀN TOÀN DÒNG NÀY:
+                // if (k.gcd(q.subtract(BigInteger.ONE)).compareTo(BigInteger.ONE) != 0) → ĐÃ XÓA!
+            }
+
+            // Tính r = α^k mod q
+            BigInteger r = a.modPow(k, q);
+
+            // Tính x*r mod (q-1)
+            BigInteger xr = x.multiply(r).mod(q.subtract(BigInteger.ONE));
+
+            // Tính (m - x*r) mod (q-1)
+            BigInteger diff = m.subtract(xr);
+            if (diff.signum() < 0) {
+                diff = diff.add(q.subtract(BigInteger.ONE));
+            }
+
+            // Tính nghịch đảo của k mod (q-1)
+            // → Nếu k và (q-1) không nguyên tố cùng nhau → modInverse sẽ ném ngoại lệ
+            // → Nhưng ta vẫn cho phép, vì người dùng muốn demo cả trường hợp lỗi
+            BigInteger kInv;
+            try {
+                kInv = k.modInverse(q.subtract(BigInteger.ONE));
+            } catch (ArithmeticException e) {
+                if (autoK) {
+                    // Nếu tự động → thử lại k khác
+                    continue;
+                } else {
+                    // Nếu nhập tay → vẫn cố tính, để người dùng thấy lỗi (hoặc dùng cách khác)
+                    throw new IllegalArgumentException("k = " + k + " không có nghịch đảo mod (q-1) → không thể tính s!");
+                }
+            }
+
+            // Tính s = k⁻¹ * (m - x*r) mod (q-1)
+            BigInteger s = kInv.multiply(diff).mod(q.subtract(BigInteger.ONE));
+
+            // Nếu s = 0 → không an toàn, thử lại k (chỉ khi auto)
+            if (s.signum() == 0) {
+                if (autoK) {
+                    continue; // thử k khác
+                } else {
+                    // Người dùng cố tình → vẫn trả về, để demo trường hợp xấu
+                    return new FullSignature(r, s, k);
+                }
+            }
+
+            // Thành công → trả về chữ ký (r, s, k)
+            return new FullSignature(r, s, k);
+
+        } while (autoK); // chỉ lặp khi tự động chọn k
+
+        // Không bao giờ tới đây nếu nhập tay, trừ khi có lỗi nghiêm trọng
+        throw new RuntimeException("Không thể tạo chữ ký với k này!");
+    }
+
+    // XÁC MINH CHỈ DÙNG r,s
+    public static boolean verify(String message, BigInteger r, BigInteger s, ElgamalKey publicKey) {
+        BigInteger q = publicKey.getQ();
+        BigInteger a = publicKey.getA();
+        BigInteger y = publicKey.getY();
+
+        if (r.compareTo(BigInteger.ONE) < 0 || r.compareTo(q) >= 0) return false;
+        if (s.compareTo(BigInteger.ZERO) <= 0 || s.compareTo(q.subtract(BigInteger.ONE)) >= 0) return false;
+
+        BigInteger m = hashToBigInteger(message, q);
+        BigInteger v1 = a.modPow(m, q);
+        BigInteger v2 = y.modPow(r, q).multiply(r.modPow(s, q)).mod(q);
+        return v1.equals(v2);
+    }
+
+    // Tìm căn nguyên thủy
+    private static boolean isPrimitiveRoot(BigInteger g, BigInteger q) {
+        BigInteger p = q.subtract(BigInteger.ONE);
+        List<BigInteger> factors = primeFactors(p);
+        for (BigInteger f : factors) {
+            if (g.modPow(p.divide(f), q).equals(BigInteger.ONE)) return false;
+        }
+        return true;
+    }
+
+    public static BigInteger findPrimitiveRoot(BigInteger q) {
+        BigInteger[] candidates = {BigInteger.valueOf(2), BigInteger.valueOf(3), BigInteger.valueOf(5),
+                BigInteger.valueOf(6), BigInteger.valueOf(7), BigInteger.valueOf(10)};
+        for (BigInteger g : candidates) {
+            if (g.compareTo(q) < 0 && isPrimitiveRoot(g, q)) return g;
+        }
+        for (int i = 0; i < 1000; i++) {
+            BigInteger g = new BigInteger(q.bitLength(), rnd).mod(q.subtract(BigInteger.ONE)).add(BigInteger.ONE);
+            if (isPrimitiveRoot(g, q)) return g;
+        }
+        throw new RuntimeException("Không tìm được căn nguyên thủy");
+    }
+
+    private static List<BigInteger> primeFactors(BigInteger n) {
+        List<BigInteger> factors = new ArrayList<>();
+        BigInteger num = n;
+        while (num.mod(BigInteger.TWO).equals(BigInteger.ZERO)) {
+            factors.add(BigInteger.TWO);
+            num = num.divide(BigInteger.TWO);
+        }
+        for (BigInteger i = BigInteger.valueOf(3); i.multiply(i).compareTo(num) <= 0; i = i.add(BigInteger.TWO)) {
+            while (num.mod(i).equals(BigInteger.ZERO)) {
+                factors.add(i);
+                num = num.divide(i);
+            }
+        }
+        if (num.compareTo(BigInteger.ONE) > 0) factors.add(num);
+        return new ArrayList<>(new java.util.HashSet<>(factors));
+    }
+}

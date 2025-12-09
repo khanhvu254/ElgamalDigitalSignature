@@ -1,0 +1,275 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chữ Ký Số ElGamal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            min-height: 100vh;
+            padding: 30px 0;
+        }
+        .container { max-width: 1450px; }
+        .card {
+            border: none;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.25);
+        }
+        .card-header {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            font-weight: bold;
+            font-size: 1.3rem;
+            padding: 18px;
+        }
+        .result-box {
+            background: #f0fff0;
+            border: 2px solid #28a745;
+            border-radius: 15px;
+            padding: 18px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.05rem;
+            margin-top: 18px;
+            color: #155724;
+        }
+        .error-box {
+            background: #fff0f0;
+            border: 2px solid #dc3545;
+            border-radius: 15px;
+            padding: 18px;
+            margin-top: 18px;
+            color: #721c24;
+        }
+        .btn-primary, .btn-success, .btn-info, .btn-warning, .btn-danger {
+            border-radius: 15px;
+            padding: 12px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        .history {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 18px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-size: 0.95rem;
+        }
+        .history li {
+            padding: 8px 0;
+            border-bottom: 1px dashed #dee2e6;
+        }
+        .history li:last-child { border-bottom: none; }
+        .key-display {
+            background: #e6f7ff;
+            border-left: 5px solid #1890ff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="text-center text-white mb-5">
+        <h1 class="display-5 fw-bold">HỆ THỐNG CHỮ KÝ SỐ ELGAMAL</h1>
+        <p class="lead">Tạo khóa → Ký → Xác minh</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- BƯỚC 1: TẠO KHÓA -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    BƯỚC 1: TẠO KHÓA
+                </div>
+                <div class="card-body">
+                    <!-- NHẬP TAY -->
+                    <form action="keygen" method="post" class="mb-3">
+                        <input type="hidden" name="type" value="manual">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Số nguyên tố q</label>
+                            <input type="text" class="form-control" name="q" value="${sessionScope.lastQ}" placeholder="Ví dụ: 19" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Căn nguyên thủy α (a)</label>
+                            <input type="text" class="form-control" name="a" value="${sessionScope.lastA}" placeholder="Ví dụ: 10" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Khóa bí mật x (1 ≤ x ≤ q-2)</label>
+                            <input type="text" class="form-control" name="x" value="${sessionScope.lastX}" placeholder="Ví dụ: 5" required>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Tạo khóa từ dữ liệu vào</button>
+                        </div>
+                    </form>
+
+                    <!-- TỰ ĐỘNG -->
+                    <form action="keygen" method="post" class="mb-3">
+                        <input type="hidden" name="type" value="auto">
+                        <button type="submit" class="btn btn-success w-100">
+                            <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            <span class="ms-2">Tạo khóa ngẫu nhiên (70-bit – tức thì)</span>
+                        </button>
+                    </form>
+
+                    <!-- RESET KHÓA RIÊNG -->
+                    <c:if test="${not empty sessionScope.keyPair}">
+                        <form action="resetkey" method="post" class="mb-3">
+                            <button type="submit" class="btn btn-warning w-100">
+                                <i class="fas fa-trash-alt"></i> Reset khóa (chỉ xóa khóa)
+                            </button>
+                        </form>
+                    </c:if>
+
+                    <!-- LỖI -->
+                    <c:if test="${not empty sessionScope.keygenError}">
+                        <div class="error-box">
+                            <strong>Lỗi:</strong> ${sessionScope.keygenError}
+                        </div>
+                        <c:remove var="keygenError" scope="session"/>
+                    </c:if>
+
+                    <!-- KẾT QUẢ KHÓA - ĐẸP HƠN -->
+                    <c:if test="${not empty sessionScope.keyPair}">
+                        <div class="result-box">
+                            <strong class="text-success fs-5">Khóa đã sinh thành công!</strong><br><br>
+
+                            <div class="key-display mb-3">
+                                <strong>Khóa công khai = { q, a, y }</strong><br>
+                                q = ${sessionScope.keyPair.q}<br>
+                                a = ${sessionScope.keyPair.a}<br>
+                                y = ${sessionScope.keyPair.y}
+                            </div>
+
+                            <div class="key-display border-left-danger bg-danger-subtle">
+                                <strong>Khóa bí mật = { x }</strong><br>
+                                x = <span class="text-danger fw-bold">${sessionScope.keyPair.x}</span>
+                                <br><small class="text-muted">Không chia sẻ khóa này!</small>
+                            </div>
+                        </div>
+                    </c:if>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 2 & 3 GIỮ NGUYÊN (tui rút gọn cho gọn) -->
+        <!-- BƯỚC 2: KÝ TÀI LIỆU -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    BƯỚC 2: KÝ TÀI LIỆU
+                </div>
+                <div class="card-body">
+                    <c:choose>
+                        <c:when test="${sessionScope.keyPair != null && sessionScope.keyPair.hasPrivateKey()}">
+                            <form action="sign" method="post" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Nội dung cần ký</label>
+                                    <textarea class="form-control" rows="5" name="message" placeholder="Nhập văn bản..."></textarea>
+                                </div>
+                                <div class="text-center text-muted mb-3">HOẶC</div>
+                                <div class="mb-3">
+                                    <input type="file" class="form-control" name="file">
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Ký tài liệu</button>
+                            </form>
+
+                            <c:if test="${not empty requestScope.signature}">
+                                <div class="result-box mt-3">
+                                    <strong class="text-success">Chữ ký:</strong><br><br>
+                                    ${requestScope.signature}
+                                </div>
+                            </c:if>
+                        </c:when>
+                        <c:otherwise>
+                            <p class="text-muted text-center fst-italic">Vui lòng tạo khóa trước</p>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
+            </div>
+        </div>
+
+        <!-- BƯỚC 3: XÁC MINH -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    BƯỚC 3: XÁC MINH CHỮ KÝ
+                </div>
+                <div class="card-body">
+                    <form action="verify" method="post">
+                        <div class="mb-2"><input type="text" class="form-control form-control-sm" name="q" placeholder="q" required></div>
+                        <div class="mb-2"><input type="text" class="form-control form-control-sm" name="a" placeholder="a" required></div>
+                        <div class="mb-2"><input type="text" class="form-control form-control-sm" name="y" placeholder="y" required></div>
+                        <div class="mb-2"><input type="text" class="form-control form-control-sm" name="r" placeholder="r" required></div>
+                        <div class="mb-2"><input type="text" class="form-control form-control-sm" name="s" placeholder="s" required></div>
+                        <div class="mb-3"><textarea class="form-control" rows="4" name="message" placeholder="Nội dung gốc..." required></textarea></div>
+                        <button type="submit" class="btn btn-info text-white w-100">Xác minh</button>
+                    </form>
+
+                    <c:if test="${not empty requestScope.valid}">
+                        <div class="result-box mt-3 ${requestScope.valid ? '' : 'border-danger bg-danger-subtle'}">
+                            <h5 class="text-center fw-bold ${requestScope.valid ? 'text-success' : 'text-danger'}">
+                                ${requestScope.valid ? 'HỢP LỆ' : 'KHÔNG HỢP LỆ'}
+                            </h5>
+                        </div>
+                    </c:if>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LỊCH SỬ -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Lịch sử hành động</h5>
+                        <a href="delete" class="btn btn-danger btn-sm">Xóa tất cả</a>
+                    </div>
+                    <c:choose>
+                        <c:when test="${not empty sessionScope.history}">
+                            <ul class="history list-unstyled mb-0">
+                                <c:forEach var="item" items="${sessionScope.history}">
+                                    <li>${item}</li>
+                                </c:forEach>
+                            </ul>
+                        </c:when>
+                        <c:otherwise>
+                            <p class="text-muted mb-0">Chưa có hành động nào.</p>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Không nhảy lên đầu trang sau khi submit
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+
+    // Loading cho nút tạo khóa tự động
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const btn = this.querySelector('button[type="submit"]');
+            if (btn) {
+                if (this.querySelector('input[name="type"]')?.value === 'auto') {
+                    btn.disabled = true;
+                    btn.querySelector('.spinner-border')?.classList.remove('d-none');
+                }
+            }
+        });
+    });
+</script>
+</body>
+</html>

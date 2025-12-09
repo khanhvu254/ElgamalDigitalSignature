@@ -1,0 +1,17 @@
+package controller;
+
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/clearall")
+public class ClearAllServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        request.getSession().invalidate(); // XÓA TOÀN BỘ SESSION
+        response.setStatus(200);
+    }
+}

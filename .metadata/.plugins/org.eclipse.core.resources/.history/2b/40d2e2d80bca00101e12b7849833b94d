@@ -1,0 +1,86 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import model.Signature;
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Date;
+import java.util.List;
+
+@WebServlet("/sign")
+@MultipartConfig
+public class SignServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        ElgamalKey keyPair = (ElgamalKey) session.getAttribute("keyPair");
+
+        // Kiểm tra khóa
+        if (keyPair == null || !keyPair.hasPrivateKey()) {
+            request.setAttribute("error", "Vui lòng tạo khóa trước khi ký!");
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+            return;
+        }
+
+        // Lấy nội dung cần ký
+        String message = request.getParameter("message");
+        Part filePart = request.getPart("file");
+
+        if ((message == null || message.trim().isEmpty()) && 
+            (filePart == null || filePart.getSize() == 0)) {
+            request.setAttribute("error", "Vui lòng nhập văn bản hoặc tải file để ký!");
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+            return;
+        }
+
+        // Nếu có file → đọc nội dung file
+        if ((message == null || message.trim().isEmpty()) && filePart != null && filePart.getSize() > 0) {
+            message = new String(filePart.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        try {
+            // Tạo chữ ký
+            Signature signature = ElgamalModel.sign(message, keyPair);
+
+            // Chuyển r và s sang Base64 (đúng chuẩn, an toàn)
+            String rBase64 = Base64.getEncoder().encodeToString(signature.getR().toByteArray());
+            String sBase64 = Base64.getEncoder().encodeToString(signature.getS().toByteArray());
+
+            // Chuỗi chữ ký dạng Base64: r:s (rất phổ biến trong thực tế)
+            String signatureBase64 = rBase64 + ":" + sBase64;
+
+            // Lưu vào lịch sử
+            List<String> history = (List<String>) session.getAttribute("history");
+            if (history == null) {
+                history = new ArrayList<>();
+                session.setAttribute("history", history);
+            }
+
+            String shortMsg = message.length() > 50 ? message.substring(0, 50) + "..." : message;
+            history.add(0, "[" + new Date() + "] Đã ký: " + shortMsg);
+
+            // Gửi dữ liệu về JSP
+            request.setAttribute("messageContent", message);           // để giữ lại nội dung đã nhập
+            request.setAttribute("signatureBase64", signatureBase64);  // để hiển thị và copy
+
+            // Forward về trang chính
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.setAttribute("error", "Lỗi khi ký tài liệu: " + e.getMessage());
+            request.getRequestDispatcher("index.jsp").forward(request, response);
+        }
+    }
+}

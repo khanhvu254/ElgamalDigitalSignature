@@ -1,0 +1,18 @@
+package controller;
+
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/resetkey")
+public class ResetKeyServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        HttpSession session = req.getSession();
+        session.removeAttribute("keyPair");
+        session.removeAttribute("lastQ");
+        session.removeAttribute("lastA");
+        session.removeAttribute("lastX");
+        // Không redirect → để JS reload lại trang
+        resp.setStatus(200);
+    }
+}

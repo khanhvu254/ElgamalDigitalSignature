@@ -1,0 +1,134 @@
+package controller;
+
+import model.ElgamalModel;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+@WebServlet("/process")
+public class ElgamalServlet extends HttpServlet {
+
+    private final ElgamalModel model = new ElgamalModel();
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.setCharacterEncoding("UTF-8");
+        String action = req.getParameter("action");
+        HttpSession session = req.getSession();
+
+        try {
+            switch (action) {
+                case "generateKeys" -> handleGenerateKeys(req, session);
+                case "sign" -> handleSign(req, session);
+                case "verify" -> handleVerify(req, session);
+                case "reset" -> {
+                    session.invalidate();
+                    resp.sendRedirect("index.jsp");
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            req.setAttribute("error", "Lỗi hệ thống: " + e.getMessage());
+        }
+
+        req.getRequestDispatcher("index.jsp").forward(req, resp);
+    }
+
+    private void handleGenerateKeys(HttpServletRequest req, HttpSession session) {
+        String mode = req.getParameter("genMode");
+        BigInteger p, alpha, x, y;
+
+        if ("random".equals(mode)) {
+            BigInteger[] keys = model.generateKeys(512);
+            p = keys[0]; alpha = keys[1]; x = keys[2]; y = keys[3];
+        } else {
+            p = new BigInteger(req.getParameter("p"));
+            alpha = new BigInteger(req.getParameter("alpha"));
+            x = new BigInteger(req.getParameter("x"));
+            y = alpha.modPow(x, p);
+        }
+
+        session.setAttribute("key_p", p);
+        session.setAttribute("key_alpha", alpha);
+        session.setAttribute("key_x", x);
+        session.setAttribute("key_y", y);
+    }
+
+    private void handleSign(HttpServletRequest req, HttpSession session) throws Exception {
+        BigInteger p = (BigInteger) session.getAttribute("key_p");
+        BigInteger alpha = (BigInteger) session.getAttribute("key_alpha");
+        BigInteger x = (BigInteger) session.getAttribute("key_x");
+
+        if (p == null || x == null) {
+            req.setAttribute("error", "Chưa tạo khóa! Vui lòng thực hiện Bước 1 trước.");
+            return;
+        }
+
+        String docContent = req.getParameter("docContent");
+        if (docContent == null || docContent.trim().isEmpty()) {
+            req.setAttribute("error", "Vui lòng nhập nội dung cần ký!");
+            return;
+        }
+
+        String[] signature = model.sign(docContent, p, alpha, x);
+
+        session.setAttribute("sign_r", signature[0]);
+        session.setAttribute("sign_s", signature[1]);
+        session.setAttribute("last_signed_doc", docContent);
+    }
+
+    private void handleVerify(HttpServletRequest req, HttpSession session) {
+        BigInteger p = (BigInteger) session.getAttribute("key_p");
+        BigInteger alpha = (BigInteger) session.getAttribute("key_alpha");
+        BigInteger y = (BigInteger) session.getAttribute("key_y");
+
+        if (p == null || y == null) {
+            req.setAttribute("error", "Chưa có khóa công khai! Vui lòng tạo khóa trước.");
+            return;
+        }
+
+        String sigInput = req.getParameter("sigVerifyR");
+        String docVerify = req.getParameter("docVerify");
+
+        if (sigInput == null || docVerify == null || sigInput.trim().isEmpty()) {
+            req.setAttribute("error", "Vui lòng nhập đầy đủ chữ ký và văn bản!");
+            return;
+        }
+
+        String sigR = sigInput;
+        String sigS = "";
+        if (sigInput.contains(",")) {
+            String[] parts = sigInput.split(",");
+            sigR = parts[0].trim();
+            sigS = parts.length > 1 ? parts[1].trim() : "";
+        }
+
+        boolean isValid = false;
+        try {
+            isValid = model.verify(docVerify, sigR, sigS, p, alpha, y);
+        } catch (Exception e) {
+            isValid = false;
+        }
+
+        // Lưu trạng thái xác minh
+        session.setAttribute("verify_result", isValid);
+        session.setAttribute("verify_checked", true);
+
+        // Lưu lịch sử
+        List<String> history = (List<String>) session.getAttribute("verify_history");
+        if (history == null) history = new ArrayList<>();
+
+        String shortDoc = docVerify.length() > 40 ? docVerify.substring(0, 37) + "..." : docVerify.replace("\n", " ");
+        String result = isValid ? "HỢP LỆ" : "KHÔNG HỢP LỆ";
+        String entry = "<strong>" + new Date() + "</strong><br>→ Văn bản: \"" + shortDoc + "\"<br>→ Chữ ký: (" + sigR + ", " + sigS + ")<br>→ <span class='" + (isValid ? "text-success" : "text-danger") + "'>Kết quả: " + result + "</span>";
+
+        history.add(0, entry);
+        if (history.size() > 20) history.remove(history.size() - 1);
+        session.setAttribute("verify_history", history);
+    }
+}

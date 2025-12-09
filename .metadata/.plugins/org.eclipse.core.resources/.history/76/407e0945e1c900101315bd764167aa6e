@@ -1,0 +1,41 @@
+package controller;
+
+import model.ElgamalKey;
+import model.ElgamalModel;
+import model.Signature;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.math.BigInteger;
+
+@WebServlet("/verify")
+public class VerifyServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+            BigInteger q = new BigInteger(request.getParameter("q"));
+            BigInteger a = new BigInteger(request.getParameter("a"));
+            BigInteger y = new BigInteger(request.getParameter("y"));
+            BigInteger r = new BigInteger(request.getParameter("r"));
+            BigInteger s = new BigInteger(request.getParameter("s"));
+            String message = request.getParameter("message");
+
+            ElgamalKey publicKey = new ElgamalKey(q, a, y);
+            Signature signature = new Signature(r, s);
+
+            boolean valid = ElgamalModel.verify(message, signature, publicKey);
+
+            request.setAttribute("valid", valid);
+            request.setAttribute("message", message);
+            request.setAttribute("publicKey", String.format("q=%s, a=%s, y=%s", q.toString(16), a.toString(16), y.toString(16)));
+            request.setAttribute("signature", signature);
+
+            request.getRequestDispatcher("verify_result.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            response.sendError(400, "Dữ liệu không hợp lệ: " + e.getMessage());
+        }
+    }
+}
