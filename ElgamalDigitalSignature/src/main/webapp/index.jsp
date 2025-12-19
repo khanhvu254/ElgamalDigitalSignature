@@ -23,6 +23,50 @@
             };
             reader.readAsText(file);
         }
+        
+        function resetKeys() {
+            document.getElementById('formResetKeys').submit();
+        }
+
+        function copySignature(r, s) {
+            const signatureText = r + "," + s;
+            navigator.clipboard.writeText(signatureText).then(function() {
+                showCopyNotification("Đã copy chữ ký vào clipboard!");
+            }, function(err) {
+                alert("Lỗi khi copy: " + err);
+            });
+        }
+
+        function showCopyNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'copy-notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(function() {
+                notification.classList.add('show');
+            }, 10);
+            
+            setTimeout(function() {
+                notification.classList.remove('show');
+                setTimeout(function() {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 2000);
+        }
+
+        function exportSignature(r, s) {
+            const signatureText = r + "," + s;
+            const blob = new Blob([signatureText], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'signature.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
     </script>
 </head>
 <body>
@@ -54,7 +98,7 @@
         <div class="card">
             <div class="card-header">BƯỚC 1: TẠO KHÓA</div>
             <div class="card-body">
-                <form action="process" method="post">
+                <form action="process" method="post" id="formGenerateKeys">
                     <input type="hidden" name="action" value="generateKeys">
 
                     <label>p (số nguyên tố)</label>
@@ -66,20 +110,24 @@
                     <label>Khóa bí mật x</label>
                     <input type="text" name="x" value="${sessionScope.key_x != null ? sessionScope.key_x : ''}">
 
-                    <div class="single-button-row">
+                    <div class="button-group">
                         <button type="submit" name="genMode" value="input" class="btn btn-primary">Tạo khóa từ đầu vào</button>
+                        <button type="button" onclick="resetKeys()" class="btn btn-danger btn-reset-key">Reset khóa</button>
                     </div>
 
                     <div class="divider-text">hoặc</div>
 
                     <button type="submit" name="genMode" value="random" class="btn btn-success">Tạo khóa ngẫu nhiên</button>
                 </form>
+                
+                <form action="process" method="post" id="formResetKeys" style="display: none;">
+                    <input type="hidden" name="action" value="resetKeys">
+                </form>
 
                 <div class="result-box">
                     <strong>Khóa Đã Sinh:</strong>
                     <% if(session.getAttribute("key_p") != null) { %>
 
-                        <!-- ĐÃ XÓA p và alpha theo yêu cầu -->
                         <div class="key-row">
                             <span class="key-label">x (khóa bí mật):</span>
                             <span class="key-value"><%= session.getAttribute("key_x") %></span>
@@ -117,6 +165,15 @@
                     <% if(signR != null) { %>
                         <div class="key-row"><span class="key-label">r:</span> <span class="key-value"><%= signR %></span></div>
                         <div class="key-row"><span class="key-label">s:</span> <span class="key-value"><%= signS %></span></div>
+                        
+                        <div class="signature-actions">
+                            <button type="button" class="btn-select" onclick="copySignature('<%= signR %>', '<%= signS %>')">
+                                Chọn
+                            </button>
+                            <button type="button" class="btn-export" onclick="exportSignature('<%= signR %>', '<%= signS %>')">
+                                Xuất file
+                            </button>
+                        </div>
                     <% } else { %>
                         <div class="placeholder">Chưa có chữ ký.</div>
                     <% } %>

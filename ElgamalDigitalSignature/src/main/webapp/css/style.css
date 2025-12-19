@@ -144,6 +144,128 @@ input[type="file"] {
     font-weight: 600;
 }
 
+/* ======================= BUTTON GROUP (2 nút cạnh nhau) ======================= */
+.button-group {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.btn-reset-key {
+    font-size: 0.9rem;
+    padding: 12px 8px;
+}
+
+@media (max-width: 600px) {
+    .button-group {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ======================= SIGNATURE ACTIONS  ======================= */
+.signature-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 10px;
+    background: #f8fbff; 
+    border-radius: 8px;
+    border: 1px solid #e0eaff;
+}
+
+.btn-select,
+.btn-export {
+    padding: 9px 16px;            
+    border-radius: 8px;          
+    border: none;
+    cursor: pointer;
+    font-weight: 600;             
+    font-size: 0.92rem;           
+    letter-spacing: 0.3px;
+    transition: all 0.25s ease;
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); 
+    position: relative;
+    overflow: hidden;
+}
+
+/* Nút "Chọn" */
+.btn-select {
+    background: linear-gradient(135deg, #5c7cfa 0%, #4c6ef5 100%);
+}
+
+.btn-select:hover {
+    background: linear-gradient(135deg, #4c6ef5 0%, #3b5bdb 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(76, 110, 245, 0.25);
+}
+
+.btn-select:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Nút "Xuất file"  */
+.btn-export {
+    background: linear-gradient(135deg, #5c7cfa 0%, #4c6ef5 100%);
+}
+
+.btn-export:hover {
+    background: linear-gradient(135deg, #4c6ef5 0%, #3b5bdb 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(76, 110, 245, 0.25);
+}
+
+.btn-export:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Hiệu ứng ripple nhẹ khi click */
+.btn-select::after,
+.btn-export::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+}
+
+.btn-select:active::after,
+.btn-export:active::after {
+    width: 200px;
+    height: 200px;
+}
+
+/* Copy Notification */
+.copy-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.3s ease;
+}
+
+.copy-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
 /* ======================= RESULT / KEY DISPLAY ======================= */
 .result-box,
 .verify-result-section {
@@ -215,8 +337,8 @@ input[type="file"] {
 
 /* ======================= RESET BUTTON – nhỏ hơn và ở giữa ======================= */
 .reset-small {
-    padding: 6px 16px;      /* nhỏ hơn nữa */
-    font-size: 0.85rem;     /* bé hơn */
+    padding: 6px 16px;
+    font-size: 0.85rem;
     font-weight: bold;
     color: #d6336c;
     background: transparent;
@@ -224,8 +346,8 @@ input[type="file"] {
     border-radius: 8px;
     cursor: pointer;
     transition: 0.15s;
-    width: auto;            /* không full width */
-    display: inline-block;  /* inline để căn giữa */
+    width: auto;
+    display: inline-block;
 }
 
 .reset-small:hover {

@@ -30,7 +30,10 @@ public class ElgamalServlet extends HttpServlet {
                     handleVerify(req, session);
                     break;
                 case "reset":
-                    handleReset(session); // Gọi hàm xử lý reset
+                    handleReset(session);
+                    break;
+                case "resetKeys":
+                    handleResetKeys(session);
                     break;
             }
         } catch (Exception e) {
@@ -74,16 +77,23 @@ public class ElgamalServlet extends HttpServlet {
         }
 
         String docContent = req.getParameter("docContent");
+        
+        // Validation: Kiểm tra văn bản có rỗng không
+        if (docContent == null || docContent.trim().isEmpty()) {
+            req.setAttribute("error", "Vui lòng nhập văn bản cần ký!");
+            return;
+        }
+
         String[] signature = model.sign(docContent, p, alpha, x);
 
         // Đặt chữ ký vào session (để giữ lại sau verify) và request
-        session.setAttribute("sign_r_session", signature[0]); // Thêm vào session
-        session.setAttribute("sign_s_session", signature[1]); // Thêm vào session
-        session.setAttribute("last_signed_doc_session", docContent); // Thêm vào session
+        session.setAttribute("sign_r_session", signature[0]);
+        session.setAttribute("sign_s_session", signature[1]);
+        session.setAttribute("last_signed_doc_session", docContent);
 
         req.setAttribute("sign_r", signature[0]);
         req.setAttribute("sign_s", signature[1]);
-        req.setAttribute("last_signed_doc", docContent); // Vẫn giữ ở request cho lần load trang đầu tiên
+        req.setAttribute("last_signed_doc", docContent);
     }
 
     private void handleVerify(HttpServletRequest req, HttpSession session) {
@@ -105,8 +115,21 @@ public class ElgamalServlet extends HttpServlet {
         String sigR = req.getParameter("sigVerifyR");
         String sigS = ""; 
 
+        // Validation: Kiểm tra văn bản và chữ ký có rỗng không
+        if (docVerify == null || docVerify.trim().isEmpty()) {
+            req.setAttribute("error", "Vui lòng nhập văn bản gốc cần xác minh!");
+            req.setAttribute("verify_sig_input", sigR);
+            return;
+        }
+        
+        if (sigR == null || sigR.trim().isEmpty()) {
+            req.setAttribute("error", "Vui lòng nhập chữ ký cần xác minh!");
+            req.setAttribute("verify_doc_input", docVerify);
+            return;
+        }
+
         // Lưu lại dữ liệu người dùng nhập để không bị mất khi load lại trang
-        req.setAttribute("verify_sig_input", req.getParameter("sigVerifyR"));
+        req.setAttribute("verify_sig_input", sigR);
         req.setAttribute("verify_doc_input", docVerify);
         
         if(sigR.contains(",")) {
@@ -136,5 +159,16 @@ public class ElgamalServlet extends HttpServlet {
         session.removeAttribute("sign_r_session");
         session.removeAttribute("sign_s_session");
         session.removeAttribute("last_signed_doc_session");
+    }
+    
+    private void handleResetKeys(HttpSession session) {
+        // Chỉ xóa các thuộc tính khóa
+        session.removeAttribute("key_p");
+        session.removeAttribute("key_alpha");
+        session.removeAttribute("key_x");
+        session.removeAttribute("key_y");
+        session.removeAttribute("msg_gen");
+        
+        // KHÔNG xóa các thuộc tính chữ ký
     }
 }
