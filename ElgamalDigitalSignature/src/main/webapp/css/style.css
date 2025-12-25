@@ -16,7 +16,8 @@ body {
 
 /* ======================= CONTAINER ======================= */
 .container {
-    max-width: 1100px;
+    width: 100%;
+    max-width: 1800px;   /* Phù hợp màn 15.6 inch – Full HD */
     margin: 0 auto;
 }
 
@@ -37,7 +38,7 @@ h1 {
 .grid-container {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
+    gap: 24px;
 }
 
 @media (max-width: 1100px) {
@@ -66,7 +67,11 @@ h1 {
 
 /* Body */
 .card-body {
-    padding: 16px;
+    padding: 20px;
+}
+
+.card {
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.1);
 }
 
 /* ======================= FORM ======================= */
@@ -90,7 +95,7 @@ textarea {
 }
 
 textarea {
-    min-height: 110px;
+    min-height: 160px;
     resize: vertical;
 }
 
@@ -157,9 +162,19 @@ input[type="file"] {
     padding: 12px 8px;
 }
 
-@media (max-width: 600px) {
-    .button-group {
-        grid-template-columns: 1fr;
+@media (min-width: 1600px) {
+    body {
+        padding: 30px;
+    }
+
+    textarea {
+        min-height: 180px;
+        font-size: 0.95rem;
+    }
+
+    .btn {
+        padding: 14px;
+        font-size: 1rem;
     }
 }
 
@@ -359,4 +374,158 @@ input[type="file"] {
 /* Không cho card phóng to */
 .card:hover {
     transform: none !important;
+}
+
+/* ======================= EXPORT DOCUMENT BUTTON ======================= */
+.btn-export-doc {
+    background: linear-gradient(135deg, #20c997 0%, #12b886 100%);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    width: 100%;
+    margin-bottom: 10px;
+    transition: all 0.25s ease;
+    box-shadow: 0 3px 10px rgba(18, 184, 134, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hover */
+.btn-export-doc:hover {
+    background: linear-gradient(135deg, #12b886 0%, #0ca678 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(18, 184, 134, 0.35);
+}
+
+/* Active */
+.btn-export-doc:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Ripple effect */
+.btn-export-doc::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.5s ease, height 0.5s ease;
+}
+
+.btn-export-doc:active::after {
+    width: 200px;
+    height: 200px;
+}
+
+/* ======================= HISTORY & RESET CARD (FULL WIDTH) ======================= */
+.history-reset-card {
+    margin: 40px auto 20px;
+    max-width: 1800px; /* Giống max-width của container */
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.1);
+    display: grid;
+    grid-template-columns: 3fr 1fr; /* Trái chiếm 75%, phải 25% */
+    overflow: hidden;
+}
+
+.history-section {
+    padding: 24px;
+    border-right: 1px solid #eee;
+}
+
+.history-section h3 {
+    margin-bottom: 16px;
+    color: #333;
+    font-size: 1.2rem;
+    text-align: left; /* Đổi từ center sang left */
+    font-weight: 600;
+}
+
+.history-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.history-entry {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: #f8fbff;
+    border-radius: 6px;
+    border-left: 4px solid #4c6ef5;
+    font-size: 0.92rem;
+    word-break: break-word;
+}
+
+.history-entry .timestamp {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.history-entry .action {
+    font-weight: bold;
+    color: #4c6ef5;
+}
+
+.history-entry .data {
+    color: #333;
+}
+
+.reset-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    background: #ffffff; /* Đổi từ #fff5f8 (hồng nhạt) sang trắng */
+}
+
+.reset-large {
+    padding: 10px 20px;         /* Giảm padding để nút nhỏ hơn */
+    font-size: 0.95rem;         /* Chữ nhỏ hơn một chút */
+    font-weight: bold;
+    background: #d6336c;        /* Giữ màu đỏ */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+.reset-large:hover {
+    background: #c5275f;
+    transform: scale(1.05);
+}
+
+/* Responsive: khi màn hình nhỏ thì xếp dọc */
+@media (max-width: 1100px) {
+    .history-reset-card {
+        grid-template-columns: 1fr;
+    }
+    
+    .history-section {
+        border-right: none;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 20px;
+    }
+    
+    .reset-section {
+        padding: 20px;
+    }
+    
+    .reset-large {
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto;
+    }
 }

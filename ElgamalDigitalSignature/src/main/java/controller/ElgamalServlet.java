@@ -7,6 +7,9 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 @WebServlet("/process")
 public class ElgamalServlet extends HttpServlet {
@@ -44,27 +47,50 @@ public class ElgamalServlet extends HttpServlet {
     }
 
     private void handleGenerateKeys(HttpServletRequest req, HttpSession session) {
+
         String mode = req.getParameter("genMode");
-        BigInteger p, alpha, x, y;
 
         if ("random".equals(mode)) {
-            // Tạo khóa ngẫu nhiên 512 bit
             BigInteger[] keys = model.generateKeys(512);
-            p = keys[0]; alpha = keys[1]; x = keys[2]; y = keys[3];
-        } else {
-            // Tạo khóa từ đầu vào người dùng
-            p = new BigInteger(req.getParameter("p"));
-            alpha = new BigInteger(req.getParameter("alpha"));
-            x = new BigInteger(req.getParameter("x"));
-            y = alpha.modPow(x, p);
+            session.setAttribute("key_p", keys[0]);
+            session.setAttribute("key_alpha", keys[1]);
+            session.setAttribute("key_x", keys[2]);
+            session.setAttribute("key_y", keys[3]);
+            req.setAttribute("p", keys[0]);
+            req.setAttribute("alpha", keys[1]);
+            req.setAttribute("x", keys[2]);
+            session.setAttribute("msg_gen", "Đã tạo khóa ngẫu nhiên thành công!");
+            return;
         }
 
-        session.setAttribute("key_p", p);
-        session.setAttribute("key_alpha", alpha);
-        session.setAttribute("key_x", x);
-        session.setAttribute("key_y", y);
-        session.setAttribute("msg_gen", "Đã tạo khóa thành công!");
+        try {
+            BigInteger p = new BigInteger(req.getParameter("p"));
+            BigInteger alpha = new BigInteger(req.getParameter("alpha"));
+            BigInteger x = new BigInteger(req.getParameter("x"));
+
+            // KIỂM TRA ĐIỀU KIỆN
+            String error = model.validateInputKeys(p, alpha, x);
+            if (error != null) {
+                req.setAttribute("error", "Lỗi tạo khóa: " + error);
+                req.setAttribute("input_p", p);
+                req.setAttribute("input_alpha", alpha);
+                req.setAttribute("input_x", x);
+                return;
+            }
+
+            BigInteger y = alpha.modPow(x, p);
+
+            session.setAttribute("key_p", p);
+            session.setAttribute("key_alpha", alpha);
+            session.setAttribute("key_x", x);
+            session.setAttribute("key_y", y);
+            session.setAttribute("msg_gen", "Đã tạo khóa thành công!");
+
+        } catch (NumberFormatException e) {
+            req.setAttribute("error", "Vui lòng nhập đúng định dạng số nguyên!");
+        }
     }
+
 
     private void handleSign(HttpServletRequest req, HttpSession session) throws Exception {
         BigInteger p = (BigInteger) session.getAttribute("key_p");
@@ -94,6 +120,8 @@ public class ElgamalServlet extends HttpServlet {
         req.setAttribute("sign_r", signature[0]);
         req.setAttribute("sign_s", signature[1]);
         req.setAttribute("last_signed_doc", docContent);
+        
+        addToHistory(session, "sign", "Ký văn bản (độ dài: " + docContent.length() + " ký tự)", null);
     }
 
     private void handleVerify(HttpServletRequest req, HttpSession session) {
@@ -105,47 +133,68 @@ public class ElgamalServlet extends HttpServlet {
             req.setAttribute("error", "Không tìm thấy Public Key trong phiên làm việc.");
             return;
         }
-        
-        // Đặt lại các thuộc tính chữ ký đã ký trước đó vào request để BƯỚC 2 không bị mất
+
+        // Giữ dữ liệu BƯỚC 2
         req.setAttribute("sign_r", session.getAttribute("sign_r_session"));
         req.setAttribute("sign_s", session.getAttribute("sign_s_session"));
         req.setAttribute("last_signed_doc", session.getAttribute("last_signed_doc_session"));
 
         String docVerify = req.getParameter("docVerify");
-        String sigR = req.getParameter("sigVerifyR");
-        String sigS = ""; 
+        String sigInput = req.getParameter("sigVerifyR");
 
-        // Validation: Kiểm tra văn bản và chữ ký có rỗng không
         if (docVerify == null || docVerify.trim().isEmpty()) {
             req.setAttribute("error", "Vui lòng nhập văn bản gốc cần xác minh!");
-            req.setAttribute("verify_sig_input", sigR);
+            req.setAttribute("verify_sig_input", sigInput);
             return;
         }
-        
-        if (sigR == null || sigR.trim().isEmpty()) {
+
+        if (sigInput == null || sigInput.trim().isEmpty()) {
             req.setAttribute("error", "Vui lòng nhập chữ ký cần xác minh!");
             req.setAttribute("verify_doc_input", docVerify);
             return;
         }
 
-        // Lưu lại dữ liệu người dùng nhập để không bị mất khi load lại trang
-        req.setAttribute("verify_sig_input", sigR);
+        req.setAttribute("verify_sig_input", sigInput);
         req.setAttribute("verify_doc_input", docVerify);
-        
-        if(sigR.contains(",")) {
-            String[] parts = sigR.split(",");
+
+        // Tách r,s
+        String sigR = "", sigS = "";
+        if (sigInput.contains(",")) {
+            String[] parts = sigInput.split(",");
             sigR = parts[0].trim();
             sigS = parts[1].trim();
-        } else {
-            // Nếu người dùng chỉ nhập r mà thiếu s, ta thử gán s = r (trường hợp user nhập s vào ô r)
-            sigS = req.getParameter("sigVerifyS"); 
-            if(sigS == null) sigS = "";
         }
-        
+
         boolean isValid = model.verify(docVerify, sigR, sigS, p, alpha, y);
-        req.setAttribute("verify_result", isValid);
+
+        // PHÂN BIỆT NGUYÊN NHÂN
+        String origR = (String) session.getAttribute("sign_r_session");
+        String origS = (String) session.getAttribute("sign_s_session");
+
+        String verifyStatus;
+        boolean sigChanged =
+                !sigR.equals(origR) || !sigS.equals(origS);
+
+        boolean docChanged =
+                !docVerify.equals(session.getAttribute("last_signed_doc_session"));
+
+        if (isValid) {
+            verifyStatus = "OK";
+        } else if (sigChanged && docChanged) {
+            verifyStatus = "BOTH_MODIFIED";
+        } else if (sigChanged) {
+            verifyStatus = "SIG_MODIFIED";
+        } else {
+            verifyStatus = "DOC_MODIFIED";
+        }
+
+        req.setAttribute("verify_status", verifyStatus);
         req.setAttribute("verify_checked", true);
+        
+        String result = isValid ? "Thành công (TRÙNG KHỚP)" : "Thất bại (" + verifyStatus + ")";
+        addToHistory(session, "verify", "Xác minh văn bản (kết quả: " + result + ")", null);
     }
+
     
     private void handleReset(HttpSession session) {
         // Xóa các thuộc tính khóa
@@ -159,6 +208,9 @@ public class ElgamalServlet extends HttpServlet {
         session.removeAttribute("sign_r_session");
         session.removeAttribute("sign_s_session");
         session.removeAttribute("last_signed_doc_session");
+        
+        // Xóa lịch sử hoạt động
+        session.removeAttribute("history");
     }
     
     private void handleResetKeys(HttpSession session) {
@@ -169,6 +221,25 @@ public class ElgamalServlet extends HttpServlet {
         session.removeAttribute("key_y");
         session.removeAttribute("msg_gen");
         
-        // KHÔNG xóa các thuộc tính chữ ký
+        addToHistory(session, "resetKeys", "Reset khóa", null);
     }
+    
+    private void addToHistory(HttpSession session, String action, String data, String kValue) {
+        ArrayList<Map<String, String>> history = (ArrayList<Map<String, String>>) session.getAttribute("history");
+        if (history == null) {
+            history = new ArrayList<>();
+        }
+        
+        Map<String, String> entry = new HashMap<>();
+        entry.put("action", action);
+        entry.put("data", data);
+        if (kValue != null) {
+            entry.put("k", kValue);
+        }
+        entry.put("timestamp", new java.util.Date().toString());
+        
+        history.add(entry);
+        session.setAttribute("history", history);
+    }
+
 }
